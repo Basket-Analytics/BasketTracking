@@ -82,6 +82,8 @@ def collage(frames, direction=1):
         plt.show()
         '''
 
+
+
         result = cv2.warpPerspective(frames[i * direction + direction],
                                      M,
                                      (current_mosaic.shape[1] + frames[i * direction + direction].shape[1],
@@ -109,6 +111,7 @@ def collage(frames, direction=1):
 def add_frame(frame, pano):
     sift = cv2.xfeatures2d.SIFT_create()  # sift instance
 
+    print('ciao')
     # FINDING FEATURES
     kp1 = sift.detect(pano)
     kp1, des1 = sift.compute(pano, kp1)
