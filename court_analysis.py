@@ -124,12 +124,14 @@ def add_frame(frame, pano, plot=False):
                                  M,
                                  (pano.shape[1],
                                   pano.shape[0]))
-    if plot: plt_plot(pano, "Warped new image")
+
+    if plot: plt_plot(result, "Warped new image")
 
     avg_pano = np.where(result < 100, pano,
                         np.uint8(np.average(np.array([pano, result]), axis=0, weights=[1, 0.7])))
+    # fare la mediana, dare 3 CFU a Simone
 
-    if plot: plt_plot(pano, "AVG new image")
+    if plot: plt_plot(avg_pano, "AVG new image")
 
     return avg_pano
 
@@ -197,6 +199,7 @@ def rectangularize_court(pano, plot=False):
     # fitting a poly to the hull
     epsilon = 0.01 * cv2.arcLength(hull, True)
     approx = cv2.approxPolyDP(hull, epsilon, True)
+    corners = approx.reshape(-1, 2)
     cv2.drawContours(pano, [approx], 0, 100, 5)
     cv2.drawContours(simple_court, [approx], 0, 255, 3)
 
@@ -205,7 +208,7 @@ def rectangularize_court(pano, plot=False):
         plt_plot(simple_court, "Rectangularized Court", cmap="gray")
         print("simplified contour has", len(approx), "points")
 
-    return simple_court
+    return simple_court, corners
 
 
 def color_polygon(img, color=0):
@@ -215,6 +218,7 @@ def color_polygon(img, color=0):
             if img[i, j] == color: found = not found
             if found: img[i, j] = color
     return img
+
 
 
 #####################################################################
@@ -240,26 +244,30 @@ if __name__ == '__main__':
         pano_enhanced = cv2.imread("pano_enhanced.png")
         # plt_plot(pano, "Panorama")
     else:
+        pano_enhanced = pano
         for file in os.listdir("resources/snapshots/"):
             frame = cv2.imread("resources/snapshots/" + file)[320:]
-            pano_enhanced = add_frame(frame, pano)
-        cv2.imwrite("pano_enhanced.png", pano)
+            pano_enhanced = add_frame(frame, pano_enhanced, plot=True)
+        cv2.imwrite("pano_enhanced.png", pano_enhanced)
 
     ###################################
     pano_enhanced = np.vstack((pano_enhanced,
                                np.zeros((100, pano_enhanced.shape[1], pano_enhanced.shape[2]), dtype=pano.dtype)))
-    img = binarize_erode_dilate(pano_enhanced, plot=True)
-    simplified_court = 255 - np.uint8(rectangularize_court(img, plot=True))
+    img = binarize_erode_dilate(pano_enhanced, plot=False)
+    simplified_court, corners = (rectangularize_court(img, plot=False))
+    simplified_court = 255 - np.uint8(simplified_court)
     # simplified_court = color_polygon(simplified_court, color=0)
 
-    fast = cv2.FastFeatureDetector_create()
-    kp = fast.detect(simplified_court, None)
-    simplified_court = cv2.drawKeypoints(simplified_court,
-                                         kp,
-                                         np.array([]),
-                                         (0, 0, 255),
-                                         cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+    plt_plot(simplified_court, "Corner Detection", cmap="gray", additional_points=corners)
 
-    plt_plot(simplified_court, "Corner Detection", cmap="gray")
-    [print(kp[i].pt[0]) for i in range(len(kp))]
-    print(len(kp))
+    panoL = pano_enhanced[:, :1870]
+    panoR = pano_enhanced[:, 1870:]
+
+    cornersL = np.array([corners[0], corners[1], [1865, 55], [1869, 389]])
+    cornersR = np.array([[0, 389], [0, 55], [corners[2][0] - 1870, corners[2][1]], [corners[3][0]-1870, corners[3][1]]])
+
+    homography(corners, pano)
+    h1 = homography(cornersL, panoL)
+    h2 = homography(cornersR, panoR)
+
+    plt_plot(np.hstack((h1, h2)))
