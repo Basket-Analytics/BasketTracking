@@ -264,10 +264,11 @@ if __name__ == '__main__':
     panoR = pano_enhanced[:, 1870:]
 
     cornersL = np.array([corners[0], corners[1], [1865, 55], [1869, 389]])
-    cornersR = np.array([[0, 389], [0, 55], [corners[2][0] - 1870, corners[2][1]], [corners[3][0]-1870, corners[3][1]]])
+    cornersR = np.array(
+        [[0, 389], [0, 55], [corners[2][0] - 1870, corners[2][1]], [corners[3][0] - 1870, corners[3][1]]])
 
     homography(corners, pano)
     h1 = homography(cornersL, panoL)
     h2 = homography(cornersR, panoR)
 
-    plt_plot(np.hstack((h1, h2)))
+    plt_plot(np.hstack((h1, cv2.resize(h2, h1.shape))))
