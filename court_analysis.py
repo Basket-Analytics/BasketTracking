@@ -94,7 +94,7 @@ def collage(frames, direction=1):
     return current_mosaic
 
 
-def add_frame(frame, pano, plot=False):
+def add_frame(frame, pano, pano_enhanced, plot=False):
     sift = cv2.xfeatures2d.SIFT_create()  # sift instance
 
     # FINDING FEATURES
@@ -127,8 +127,8 @@ def add_frame(frame, pano, plot=False):
 
     if plot: plt_plot(result, "Warped new image")
 
-    avg_pano = np.where(result < 100, pano,
-                        np.uint8(np.average(np.array([pano, result]), axis=0, weights=[1, 0.7])))
+    avg_pano = np.where(result < 100, pano_enhanced,
+                        np.uint8(np.average(np.array([pano_enhanced, result]), axis=0, weights=[1, 0.7])))
     # fare la mediana, dare 3 CFU a Simone
 
     if plot: plt_plot(avg_pano, "AVG new image")
@@ -248,6 +248,20 @@ def homography(rect, image):
     plt_plot(warped)
     return warped
 
+def rectify(pano_enhanced, corners):    
+    panoL = pano_enhanced[:, :1870]
+    panoR = pano_enhanced[:, 1870:]
+    cornersL = np.array([corners[0], corners[1], [1865, 55], [1869, 389]])
+    cornersR = np.array(
+        [[0, 389], [0, 55], [corners[2][0] - 1870, corners[2][1]], [corners[3][0] - 1870, corners[3][1]]])
+    homography(corners, pano_enhanced)
+    h1 = homography(cornersL, panoL)
+    h2 = homography(cornersR, panoR)
+    #rectified = np.hstack((h1, cv2.resize(h2, (int((h2.shape[0] / h1.shape[0]) * h1.shape[1]), h1.shape[0]))))
+    rectified = np.hstack((h1, cv2.resize(h2, (h1.shape[1], h1.shape[0]))))
+    plt_plot(rectified)
+    return rectified
+
 
 #####################################################################
 if __name__ == '__main__':
@@ -275,7 +289,7 @@ if __name__ == '__main__':
         pano_enhanced = pano
         for file in os.listdir("resources/snapshots/"):
             frame = cv2.imread("resources/snapshots/" + file)[320:]
-            pano_enhanced = add_frame(frame, pano_enhanced, plot=True)
+            pano_enhanced = add_frame(frame, pano, pano_enhanced, plot=True)
         cv2.imwrite("pano_enhanced.png", pano_enhanced)
 
     ###################################
@@ -288,15 +302,20 @@ if __name__ == '__main__':
 
     plt_plot(simplified_court, "Corner Detection", cmap="gray", additional_points=corners)
 
-    panoL = pano_enhanced[:, :1870]
-    panoR = pano_enhanced[:, 1870:]
+    rectified = rectify(pano_enhanced, corners)
 
-    cornersL = np.array([corners[0], corners[1], [1865, 55], [1869, 389]])
-    cornersR = np.array(
-        [[0, 389], [0, 55], [corners[2][0] - 1870, corners[2][1]], [corners[3][0] - 1870, corners[3][1]]])
+    map = cv2.imread("resources/2d_map.png")
+   # corners_map = [[0, map.shape[0]], [0,0], [map.shape[1], 0], [map.shape[1], map.shape[0]]]
+    #print(corners_map)
+    #homography(corners_map, map)
+    scale = rectified.shape[0]/map.shape[0]
+    map = cv2.resize(map, (int(scale*map.shape[1]), int(scale*map.shape[0])))
+    resized = cv2.resize(rectified, (map.shape[1], map.shape[0]))
+    plt_plot(resized)
+    plt_plot(map)
 
-    homography(corners, pano)
-    h1 = homography(cornersL, panoL)
-    h2 = homography(cornersR, panoR)
 
-    plt_plot(np.hstack((h1, cv2.resize(h2, h1.shape))))
+
+
+
+
