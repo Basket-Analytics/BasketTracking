@@ -298,21 +298,40 @@ if __name__ == '__main__':
     img = binarize_erode_dilate(pano_enhanced, plot=False)
     simplified_court, corners = (rectangularize_court(img, plot=False))
     simplified_court = 255 - np.uint8(simplified_court)
-    # simplified_court = color_polygon(simplified_court, color=0)
 
     plt_plot(simplified_court, "Corner Detection", cmap="gray", additional_points=corners)
 
     rectified = rectify(pano_enhanced, corners)
 
+    #correspondece map-pano
     map = cv2.imread("resources/2d_map.png")
-   # corners_map = [[0, map.shape[0]], [0,0], [map.shape[1], 0], [map.shape[1], map.shape[0]]]
-    #print(corners_map)
-    #homography(corners_map, map)
     scale = rectified.shape[0]/map.shape[0]
     map = cv2.resize(map, (int(scale*map.shape[1]), int(scale*map.shape[0])))
     resized = cv2.resize(rectified, (map.shape[1], map.shape[0]))
-    plt_plot(resized)
-    plt_plot(map)
+
+    for file in os.listdir("resources/snapshots/"):
+        img1 = cv2.imread('resources/ball/ball1.png')
+        img2 = cv2.imread('resources/snapshots/' + file)
+
+        img1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
+        img2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
+
+        #sift
+        sift = cv2.xfeatures2d.SIFT_create()
+
+        keypoints_1, descriptors_1 = sift.detectAndCompute(img1,None)
+        keypoints_2, descriptors_2 = sift.detectAndCompute(img2,None)
+
+        #feature matching
+        bf = cv2.BFMatcher(cv2.NORM_L1, crossCheck=True)
+
+        matches = bf.match(descriptors_1,descriptors_2)
+        matches = sorted(matches, key = lambda x:x.distance)
+
+        img3 = cv2.drawMatches(img1, keypoints_1, img2, keypoints_2, matches[:50], img2, flags=2)
+        plt.imshow(img3)
+        plt.show()
+
 
 
 
