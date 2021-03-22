@@ -262,6 +262,87 @@ def rectify(pano_enhanced, corners):
     plt_plot(rectified)
     return rectified
 
+def object_detection(img_train_name, query_directory):
+    for file in os.listdir(query_directory):
+        img_train = cv2.imread(img_train_name, 0)
+        img_query = cv2.imread(query_directory + file, 0)
+
+        # Creating SIFT object
+        sift = cv2.xfeatures2d.SIFT_create()
+
+        # Detecting Keypoints in the two images
+        kp_query = sift.detect(img_query)
+        kp_train = sift.detect(img_train)
+
+        # Computing the descriptors for each keypoint
+        kp_query, des_query = sift.compute(img_query, kp_query)
+        kp_train, des_train = sift.compute(img_train, kp_train)
+
+        # Initializing the matching algorithm
+        FLANN_INDEX_KDTREE = 1
+        index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
+        search_params = dict(checks=50)
+        flann = cv2.FlannBasedMatcher(index_params, search_params)
+
+        # Matching the descriptors
+        matches = flann.knnMatch(des_query, des_train, k=2)
+
+        # Keeping only good matches as per Lowe's ratio test.
+        good = []
+        for m, n in matches:
+            if m.distance < 0.7 * n.distance:
+                good.append(m)
+
+        # If we have at least 10 matches we find the box of the object
+        MIN_MATCH_COUNT = 10
+        if len(good) > MIN_MATCH_COUNT:
+            src_pts = np.float32([kp_query[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
+            dst_pts = np.float32([kp_train[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
+
+            # Calculating homography based on correspondences
+            M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+            print(M)
+            # Matches mask for visualization of only matches used by RANSAC
+            matchesMask = mask.ravel().tolist()
+
+            # Apply homography to project corners of the query image into the image
+            h, w = img_query.shape
+            pts = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]]).reshape(-1, 1, 2)
+            dst = cv2.perspectiveTransform(pts, M)
+
+            # Drawing bounding box
+            img_train = cv2.polylines(img_train, [np.int32(dst)], True, 255, 3, cv2.LINE_AA)
+        else:
+            print("Not enough matches are found - {}/{}".format(len(good), MIN_MATCH_COUNT))
+            matchesMask = None
+
+        # Drawing matches
+        draw_params = dict(matchColor=(0, 255, 0),  # draw matches in green color
+                           singlePointColor=None,
+                           matchesMask=matchesMask,  # draw only inliers
+                           flags=2)
+        img3 = cv2.drawMatches(img_query, kp_query, img_train, kp_train, good, None, **draw_params)
+        plt.imshow(img3, 'gray')
+        plt.show()
+
+def circle_detect(img_filename):
+    img = cv2.imread(img_filename, 0)
+    img = cv2.medianBlur(img, 5)
+    cimg = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+
+    circles = cv2.HoughCircles(img, cv2.HOUGH_GRADIENT, 1, 20,
+                               param1=50, param2=30, minRadius=0, maxRadius=15)
+
+    if circles is not None:
+        circles = np.uint16(np.around(circles))
+        for i in circles[0, :]:
+            # draw the outer circle
+            cv2.circle(cimg, (i[0], i[1]), i[2], (0, 255, 0), 2)
+            # draw the center of the circle
+            cv2.circle(cimg, (i[0], i[1]), 2, (0, 0, 255), 3)
+
+        plt_plot(cimg, "detected circles")
+
 
 #####################################################################
 if __name__ == '__main__':
@@ -309,29 +390,9 @@ if __name__ == '__main__':
     map = cv2.resize(map, (int(scale*map.shape[1]), int(scale*map.shape[0])))
     resized = cv2.resize(rectified, (map.shape[1], map.shape[0]))
 
-    for file in os.listdir("resources/snapshots/"):
-        img1 = cv2.imread('resources/ball/ball1.png')
-        img2 = cv2.imread('resources/snapshots/' + file)
+    #object_detection('resources/ball/ball1_1.png', 'resources/snapshots/')
 
-        img1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
-        img2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
-
-        #sift
-        sift = cv2.xfeatures2d.SIFT_create()
-
-        keypoints_1, descriptors_1 = sift.detectAndCompute(img1,None)
-        keypoints_2, descriptors_2 = sift.detectAndCompute(img2,None)
-
-        #feature matching
-        bf = cv2.BFMatcher(cv2.NORM_L1, crossCheck=True)
-
-        matches = bf.match(descriptors_1,descriptors_2)
-        matches = sorted(matches, key = lambda x:x.distance)
-
-        img3 = cv2.drawMatches(img1, keypoints_1, img2, keypoints_2, matches[:50], img2, flags=2)
-        plt.imshow(img3)
-        plt.show()
-
+    #circle_detect('resources/snapshots/')
 
 
 
