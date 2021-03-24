@@ -263,55 +263,6 @@ def rectify(pano_enhanced, corners):
     plt_plot(rectified)
     return rectified
 
-def ball_detection(img_train_name, query_directory):
-    for file in os.listdir(query_directory):
-        img_train = cv2.imread(img_train_name, 0)
-        img_query = cv2.imread(query_directory + file, 0)
-
-        centers = circle_detect(img_query)
-        if centers is not None:
-            af = 7
-            bbs = [([c[0]-c[2] - af, c[1] - c[2] - af], #tl
-                    #[c[0] + c[2] + 5, c[1] - c[2] - 5], #tr
-                    [c[0] + c[2] + af, c[1] + c[2] + af]) #br
-                    #[c[0] - c[2] - 5, c[1] + c[2] + 5]) #bl
-                   for c in centers]
-
-            # Creating SIFT object
-            sift = cv2.xfeatures2d.SIFT_create()
-
-            kp_train = sift.detect(img_train)
-            kp_train, des_train = sift.compute(img_train, kp_train)
-
-            for bb in bbs:
-                focus = img_query[bb[0][1]:bb[1][1], bb[0][0]:bb[1][0]]
-
-                # Detecting Keypoints in the two images
-                kp_query = sift.detect(focus)
-
-                # Computing the descriptors for each keypoint
-                kp_query, des_query = sift.compute(focus, kp_query)
-
-                # Initializing the matching algorithm
-                FLANN_INDEX_KDTREE = 1
-                index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
-                search_params = dict(checks=50)
-                flann = cv2.FlannBasedMatcher(index_params, search_params)
-
-                # Matching the descriptors
-                matches = flann.knnMatch(des_query, des_train, k=2)
-
-                # Keeping only good matches as per Lowe's ratio test.
-                good = []
-                for m, n in matches:
-                    if m.distance < 0.7 * n.distance:
-                        good.append(m)
-
-                if len(good) >=2:
-                    img_query = cv2.rectangle(img_query, (bb[0][0], bb[0][1]), (bb[1][0], bb[1][1]), (0,255, 0), 4)
-                    plt_plot(img_query, cmap='gray')
-
-
 def circle_detect(img):
     img = cv2.medianBlur(img, 5)
     cimg = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
@@ -330,6 +281,56 @@ def circle_detect(img):
         #plt_plot(cimg, "detected circles")
 
         return circles.reshape((-1, 3))
+
+def ball_detection(img_train_name, query_frame):
+    img_train = cv2.imread(img_train_name, 0)
+    img_query = cv2.cvtColor(query_frame, cv2.COLOR_BGR2GRAY)
+
+    centers = circle_detect(img_query)
+    if centers is not None:
+        af = 7
+        bbs = [([c[0]-c[2] - af, c[1] - c[2] - af], #tl
+                #[c[0] + c[2] + 5, c[1] - c[2] - 5], #tr
+                [c[0] + c[2] + af, c[1] + c[2] + af]) #br
+                #[c[0] - c[2] - 5, c[1] + c[2] + 5]) #bl
+               for c in centers]
+
+        # Creating SIFT object
+        sift = cv2.xfeatures2d.SIFT_create()
+
+        kp_train = sift.detect(img_train)
+        kp_train, des_train = sift.compute(img_train, kp_train)
+
+        for bb in bbs:
+            focus = img_query[bb[0][1]:bb[1][1], bb[0][0]:bb[1][0]]
+
+            # Detecting Keypoints in the two images
+            kp_query = sift.detect(focus)
+
+            # Computing the descriptors for each keypoint
+            kp_query, des_query = sift.compute(focus, kp_query)
+
+            # Initializing the matching algorithm
+            FLANN_INDEX_KDTREE = 1
+            index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
+            search_params = dict(checks=50)
+            flann = cv2.FlannBasedMatcher(index_params, search_params)
+
+            # Matching the descriptors
+            matches = flann.knnMatch(des_query, des_train, k=2)
+
+            # Keeping only good matches as per Lowe's ratio test.
+            good = []
+            for m, n in matches:
+                if m.distance < 0.7 * n.distance:
+                    good.append(m)
+
+            if len(good) >=2:
+                img_query = cv2.rectangle(img_query, (bb[0][0], bb[0][1]), (bb[1][0], bb[1][1]), (0,255, 0), 4)
+                plt_plot(img_query, cmap='gray')
+                return bb
+
+    return None
 
 #####################################################################
 if __name__ == '__main__':
@@ -377,41 +378,80 @@ if __name__ == '__main__':
     map = cv2.resize(map, (int(scale*map.shape[1]), int(scale*map.shape[0])))
     resized = cv2.resize(rectified, (map.shape[1], map.shape[0]))
 
-    ball_detection('resources/ball/ball1_1.png', 'resources/snapshots/')
+    #bb = ball_detection('resources/ball/ball1_1.png', 'resources/snapshots/')
 
-    #circle_detect('resources/snapshots/')
+    #try1()
 
-    """     # If we have at least 10 matches we find the box of the object
-    MIN_MATCH_COUNT = 10
-    if len(good) > MIN_MATCH_COUNT:
-        src_pts = np.float32([kp_query[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
-        dst_pts = np.float32([kp_train[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
+    tracker_types = 'CSRT'
+    tracker = cv2.TrackerCSRT_create()
 
-        # Calculating homography based on correspondences
-        M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-        print(M)
-        # Matches mask for visualization of only matches used by RANSAC
-        matchesMask = mask.ravel().tolist()
+    video = cv2.VideoCapture("resources/Short4Mosaicing.mp4")
 
-        # Apply homography to project corners of the query image into the image
-        h, w = img_query.shape
-        pts = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]]).reshape(-1, 1, 2)
-        dst = cv2.perspectiveTransform(pts, M)
+    total = 0
+    while video.isOpened():
+        ok, frame = video.read()
+        #frame = frame[320:, :]
+        if ok:
+            total += 1
+            cv2.imshow("frame video", frame)
+            bb = ball_detection('resources/ball/ball1_1.png', frame)
+            #if bb is not None:
+                #bbox = bb
+                #break
+        else:
+            print("esco di qua")
+            break
+    print(total)
 
-        # Drawing bounding box
-        img_train = cv2.polylines(img_train, [np.int32(dst)], True, 255, 3, cv2.LINE_AA)
-    else:
-        print("Not enough matches are found - {}/{}".format(len(good), MIN_MATCH_COUNT))
-        matchesMask = None
+    bbox = bb
 
-    # Drawing matches
-    draw_params = dict(matchColor=(0, 255, 0),  # draw matches in green color
-                       singlePointColor=None,
-                       matchesMask=matchesMask,  # draw only inliers
-                       flags=2)
-    img3 = cv2.drawMatches(img_query, kp_query, img_train, kp_train, good, None, **draw_params)
-    plt.imshow(img3, 'gray')
-    plt.show()"""
+    bbox = (bbox[0][0], bbox[0][1], bbox[1][0], bbox[1][1])
+
+    # Initialize tracker with first frame and bounding box
+    ok = tracker.init(frame, bbox)
+
+    while video.isOpened():
+        # Read a new frame
+        ok, frame = video.read()
+        frame = frame[320:, :]
+        if not ok:
+            break
+
+        # Start timer
+        timer = cv2.getTickCount()
+
+        # Update tracker
+        ok, bbox = tracker.update(frame)
+
+        # Calculate Frames per second (FPS)
+        fps = cv2.getTickFrequency() / (cv2.getTickCount() - timer);
+
+        # Draw bounding box
+        if ok:
+            # Tracking success
+            p1 = (int(bbox[0]), int(bbox[1]))
+            p2 = (int(bbox[0] + bbox[2]), int(bbox[1] + bbox[3]))
+            cv2.rectangle(frame, p1, p2, (255, 0, 0), 2, 1)
+        else:
+            # Tracking failure
+            cv2.putText(frame, "Tracking failure detected", (100, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
+
+        # Display tracker type on frame
+        cv2.putText(frame, tracker_types + " Tracker", (100, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (50, 170, 50), 2);
+
+        # Display FPS on frame
+        cv2.putText(frame, "FPS : " + str(int(fps)), (100, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (50, 170, 50), 2);
+
+        # Display result
+        cv2.imshow("Tracking", frame)
+
+        # Exit if ESC pressed
+        k = cv2.waitKey(1) & 0xff
+        if k == 27: break
+
+
+
+
 
 
 
