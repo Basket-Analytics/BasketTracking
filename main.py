@@ -72,8 +72,8 @@ if __name__ == '__main__':
     ###################################
     pano_enhanced = np.vstack((pano_enhanced,
                                np.zeros((100, pano_enhanced.shape[1], pano_enhanced.shape[2]), dtype=pano.dtype)))
-    img = binarize_erode_dilate(pano_enhanced, plot=True)
-    simplified_court, corners = (rectangularize_court(img, plot=True))
+    img = binarize_erode_dilate(pano_enhanced, plot=False)
+    simplified_court, corners = (rectangularize_court(img, plot=False))
     simplified_court = 255 - np.uint8(simplified_court)
 
     plt_plot(simplified_court, "Corner Detection", cmap="gray", additional_points=corners)
@@ -87,7 +87,6 @@ if __name__ == '__main__':
     resized = cv2.resize(rectified, (map.shape[1], map.shape[0]))
 
     ball_tracker("resources/Short4Mosaicing.mp4")
-
 
 # fare tracking ogni t secondi
 

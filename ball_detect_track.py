@@ -150,8 +150,31 @@ def ball_tracker(video_directory):
                 # Tracking success
                 p1 = (int(bbox[0]), int(bbox[1]))
                 p2 = (int(bbox[0] + bbox[2]), int(bbox[1] + bbox[3]))
+                ball_center = np.array([int(bbox[0] + bbox[2] / 2), int(bbox[1] + bbox[3] / 2), 1])
+
                 cv2.rectangle(frame, p1, p2, (255, 0, 0), 2, 1)
                 found = True
+
+                # DRAW POINT IN THE MAP
+                kp2 = sift.detect(frame)
+                kp2, des2 = sift.compute(frame, kp2)
+                matches = flann.knnMatch(des1, des2, k=2)
+                good = []
+                for m, n in matches:
+                    if m.distance < 0.7 * n.distance:
+                        good.append(m)
+
+                src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
+                dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
+                M, mask = cv2.findHomography(dst_pts, src_pts, cv2.RANSAC, 5.0)
+
+                homo = M @ ball_center.reshape((3, -1))
+                homo = np.int32(homo / homo[-1]).ravel()
+
+                cv2.circle(pano, (homo[0], homo[1]), 10, (0, 0, 255), 5)
+                resized = cv2.resize(pano, (frame.shape[1], frame.shape[0]))
+                cv2.imshow("Tracking", np.vstack((frame, resized)))
+
             else:
                 # after 10 frames detect
                 max_tracking = MAX_TRACK
@@ -169,31 +192,7 @@ def ball_tracker(video_directory):
             k = cv2.waitKey(5) & 0xff
             if k == 27: break
 
-            kp2 = sift.detect(frame)
-            kp2, des2 = sift.compute(frame, kp2)
-
-            matches = flann.knnMatch(des1, des2, k=2)
-            good = []
-            for m, n in matches:
-                if m.distance < 0.7 * n.distance:
-                    good.append(m)
-
-            # Finding an homography
-            src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
-            dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
-            M, mask = cv2.findHomography(dst_pts, src_pts, cv2.RANSAC, 5.0)
-
-            result = cv2.warpPerspective(frame,
-                                         M,
-                                         (pano.shape[1],
-                                          pano.shape[0]))
-
-            avg_pano = np.uint8(np.average(np.array([pano, result]), axis=0, weights=[1, 0.7]))
-            resized = cv2.resize(avg_pano, (frame.shape[1], frame.shape[0]))
-            cv2.imshow("Tracking", np.vstack((frame, resized)))
-
             max_tracking -= 1
-
 
         else:
             break
