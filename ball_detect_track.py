@@ -11,7 +11,7 @@ def circle_detect(img):
     cimg = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
 
     circles = cv2.HoughCircles(img, cv2.HOUGH_GRADIENT, 1, 20,
-                               param1=50, param2=30, minRadius=0, maxRadius=15)
+                               param1=50, param2=25, minRadius=5, maxRadius=15)
 
     if circles is not None:
         circles = np.uint16(np.around(circles))
@@ -21,7 +21,7 @@ def circle_detect(img):
             # draw the center of the circle
             cv2.circle(cimg, (i[0], i[1]), 2, (0, 0, 255), 3)
 
-        # plt_plot(cimg, "detected circles")
+        #plt_plot(cimg, "detected circles")
 
         return circles.reshape((-1, 3))
 
@@ -48,11 +48,15 @@ def ball_detection(img_train_dir, query_frame):
         sift = cv2.xfeatures2d.SIFT_create()
 
         for ball in img_train:
-            kp_train = sift.detect(ball)
-            kp_train, des_train = sift.compute(ball, kp_train)
-
+            #kp_train = sift.detect(ball)
+            #kp_train, des_train = sift.compute(ball, kp_train)
             for bb in bbs:
                 focus = img_query[bb[0][1]:bb[1][1], bb[0][0]:bb[1][0]]
+                if focus.shape[0]> ball.shape[0] and focus.shape[1]>ball.shape[1]:
+                    res = cv2.matchTemplate(focus, ball, cv2.TM_CCORR_NORMED)
+                    if np.max(res) >= 0.98:
+                        return bb
+                """ focus = img_query[bb[0][1]:bb[1][1], bb[0][0]:bb[1][0]]
 
                 # Detecting Keypoints in the two images
                 kp_query = sift.detect(focus)
@@ -65,28 +69,34 @@ def ball_detection(img_train_dir, query_frame):
                 index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
                 search_params = dict(checks=50)
                 flann = cv2.FlannBasedMatcher(index_params, search_params)
-
                 # Matching the descriptors
                 matches = flann.knnMatch(des_query, des_train, k=2)
+
 
                 # Keeping only good matches as per Lowe's ratio test.
                 good = []
                 for m, n in matches:
                     if m.distance < 0.7 * n.distance:
                         good.append(m)
-                if len(good) >= 1:
+                if len(good) >= 4:
                     img_query = cv2.rectangle(img_query, (bb[0][0], bb[0][1]), (bb[1][0], bb[1][1]), (0, 255, 0), 4)
                     plt_plot(img_query, cmap='gray')
                     return bb
+                    """
+
+
+
     return None
 
 
 def find_ball_video(video):
+    pano = cv2.imread("pano_enhanced.png")
     while video.isOpened():
         ok, frame = video.read()
         if ok:
             frame = frame[TOPCUT:, :]
-            cv2.imshow("Tracking", frame)
+            resized = cv2.resize(pano, (frame.shape[1], frame.shape[0]))
+            cv2.imshow("Tracking", np.vstack((frame, resized)))
             if cv2.waitKey(5) & 0xFF == ord('q'):
                 break
 
@@ -106,8 +116,9 @@ def ball_tracker(video_directory):
     def init_tracker(video):
         # Initialize tracker with first frame and bounding box
         bbox, frame = find_ball_video(video)
-        bbox = (bbox[0][0], bbox[0][1], bbox[1][0] - bbox[0][0], bbox[1][1] - bbox[0][1])
-        tracker.init(frame, bbox)
+        if bbox is not None:
+            bbox = (bbox[0][0], bbox[0][1], bbox[1][0] - bbox[0][0], bbox[1][1] - bbox[0][1])
+            tracker.init(frame, bbox)
         return bbox, frame
 
     tracker_types = 'CSRT'
@@ -117,40 +128,80 @@ def ball_tracker(video_directory):
     bbox, frame = init_tracker(video)
 
     found = True
+    max_tracking = 10
+
+    sift = cv2.xfeatures2d.SIFT_create()  # sift instance
+    pano = cv2.imread("pano_enhanced.png")
+    # FINDING FEATURES
+    kp1 = sift.detect(pano)
+    kp1, des1 = sift.compute(pano, kp1)
+
     while video.isOpened():
+        max_tracking -= 1
         # Read a new frame
         ok, frame = video.read()
-        if not ok: break
-
-        frame = frame[TOPCUT:, :]
-        # Start timer
-        timer = cv2.getTickCount()
-        # Update tracker
-        if found: ok, bbox = tracker.update(frame)
-        # Calculate Frames per second (FPS)
-        fps = cv2.getTickFrequency() / (cv2.getTickCount() - timer)
-
-        # Draw bounding box
         if ok:
-            # Tracking success
-            p1 = (int(bbox[0]), int(bbox[1]))
-            p2 = (int(bbox[0] + bbox[2]), int(bbox[1] + bbox[3]))
-            cv2.rectangle(frame, p1, p2, (255, 0, 0), 2, 1)
-            found = True
-        else:
-            # Tracking failure
-            cv2.putText(frame, "Tracking failure detected",
-                        (100, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
-            bbox, frame = init_tracker(video)
+            frame = frame[TOPCUT:, :]
+            # Start timer
+            timer = cv2.getTickCount()
+            # Update tracker
+            if found: ok, bbox = tracker.update(frame)
+            # Calculate Frames per second (FPS)
+            fps = cv2.getTickFrequency() / (cv2.getTickCount() - timer)
 
-        # Display tracker type on frame
-        cv2.putText(frame, tracker_types + " Tracker",
-                    (100, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (50, 170, 50), 2)
-        # Display FPS on frame
-        cv2.putText(frame, "FPS : " + str(int(fps)),
-                    (100, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (50, 170, 50), 2)
-        # Display result
-        cv2.imshow("Tracking", frame)
-        # Exit if ESC pressed
-        k = cv2.waitKey(40) & 0xff
-        if k == 27: break
+            # Draw bounding box
+            if max_tracking>0:
+                # Tracking success
+                p1 = (int(bbox[0]), int(bbox[1]))
+                p2 = (int(bbox[0] + bbox[2]), int(bbox[1] + bbox[3]))
+                cv2.rectangle(frame, p1, p2, (255, 0, 0), 2, 1)
+                found = True
+            else:
+                # after 10 frames detect
+                max_tracking = 20
+                bbox, frame = init_tracker(video)
+                if bbox is None:
+                    break
+
+            # Display tracker type on frame
+            cv2.putText(frame, tracker_types + " Tracker",
+                        (100, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (50, 170, 50), 2)
+            # Display FPS on frame
+            cv2.putText(frame, "FPS : " + str(int(fps)),
+                        (100, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (50, 170, 50), 2)
+            # Display result
+            #cv2.imshow("Tracking", frame)
+            # Exit if ESC pressed
+            k = cv2.waitKey(5) & 0xff
+            if k == 27: break
+
+            kp2 = sift.detect(frame)
+            kp2, des2 = sift.compute(frame, kp2)
+
+            FLANN_INDEX_KDTREE = 1
+            index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
+            search_params = dict(checks=50)
+            flann = cv2.FlannBasedMatcher(index_params, search_params)
+            matches = flann.knnMatch(des1, des2, k=2)
+            good = []
+            for m, n in matches:
+                if m.distance < 0.7 * n.distance:
+                    good.append(m)
+
+            # Finding an homography
+            src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
+            dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
+            M, mask = cv2.findHomography(dst_pts, src_pts, cv2.RANSAC, 5.0)
+
+            result = cv2.warpPerspective(frame,
+                                         M,
+                                         (pano.shape[1],
+                                          pano.shape[0]))
+
+
+            avg_pano = np.uint8(np.average(np.array([pano, result]), axis=0, weights=[1, 0.7]))
+            resized = cv2.resize(avg_pano, (frame.shape[1], frame.shape[0]))
+            cv2.imshow("Tracking", np.vstack((frame, resized)))
+
+        else:
+            break

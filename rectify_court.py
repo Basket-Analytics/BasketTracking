@@ -4,7 +4,7 @@ import numpy as np
 from plot_tools import plt_plot
 
 
-def collage(frames, direction=1):
+def collage(frames, direction=1, plot=False):
     sift = cv2.xfeatures2d.SIFT_create()  # sift instance
 
     if direction == 1:
@@ -50,6 +50,9 @@ def collage(frames, direction=1):
                 current_mosaic = current_mosaic[:, :j - 50]
                 break
 
+        if plot:
+            plt_plot(current_mosaic)
+
     return current_mosaic
 
 
@@ -88,7 +91,6 @@ def add_frame(frame, pano, pano_enhanced, plot=False):
 
     avg_pano = np.where(result < 100, pano_enhanced,
                         np.uint8(np.average(np.array([pano_enhanced, result]), axis=0, weights=[1, 0.7])))
-    # fare la mediana, dare 3 CFU a Simone
 
     if plot: plt_plot(avg_pano, "AVG new image")
 
@@ -170,7 +172,7 @@ def homography(rect, image, plot=False):
 
     heightA = np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2))
     heightB = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
-    maxHeight = max(int(heightA), int(heightB)) + 700
+    maxHeight = max(int(heightA), int(heightB)) +700
 
     dst = np.array([
         [0, 0],
@@ -201,5 +203,6 @@ def rectify(pano_enhanced, corners, plot=False):
     h2 = homography(cornersR, panoR)
     # rectified = np.hstack((h1, cv2.resize(h2, (int((h2.shape[0] / h1.shape[0]) * h1.shape[1]), h1.shape[0]))))
     rectified = np.hstack((h1, cv2.resize(h2, (h1.shape[1], h1.shape[0]))))
+    cv2.imwrite("rectified.png", rectified)
     if plot: plt_plot(rectified)
     return rectified
