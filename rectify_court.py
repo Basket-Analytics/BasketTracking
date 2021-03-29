@@ -3,9 +3,14 @@ import numpy as np
 
 from plot_tools import plt_plot
 
+FLANN_INDEX_KDTREE = 1
+index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
+search_params = dict(checks=50)
+flann = cv2.FlannBasedMatcher(index_params, search_params)
+
 
 def collage(frames, direction=1, plot=False):
-    sift = cv2.xfeatures2d.SIFT_create()  # sift instance
+    sift = cv2.xfeatures2d.SIFT_create()
 
     if direction == 1:
         current_mosaic = frames[0]
@@ -20,11 +25,6 @@ def collage(frames, direction=1, plot=False):
         kp2 = sift.detect(frames[i * direction + direction])
         kp2, des2 = sift.compute(frames[i * direction + direction], kp2)
 
-        # MATCHING
-        FLANN_INDEX_KDTREE = 1
-        index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
-        search_params = dict(checks=50)
-        flann = cv2.FlannBasedMatcher(index_params, search_params)
         matches = flann.knnMatch(des1, des2, k=2)
         good = []
         for m, n in matches:
@@ -65,10 +65,6 @@ def add_frame(frame, pano, pano_enhanced, plot=False):
     kp2 = sift.detect(frame)
     kp2, des2 = sift.compute(frame, kp2)
 
-    FLANN_INDEX_KDTREE = 1
-    index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
-    search_params = dict(checks=50)
-    flann = cv2.FlannBasedMatcher(index_params, search_params)
     matches = flann.knnMatch(des1, des2, k=2)
     good = []
     for m, n in matches:
@@ -104,8 +100,8 @@ def binarize_erode_dilate(img, plot=False):
     if plot: plt_plot(img_otsu, "Panorama after Otsu", cmap="gray")
 
     kernel = np.array([[0, 0, 0],
-                        [1, 1, 1],
-                        [0, 0, 0]], np.uint8)
+                       [1, 1, 1],
+                       [0, 0, 0]], np.uint8)
 
     img_otsu = cv2.erode(img_otsu, kernel, iterations=20)
     img_otsu = cv2.dilate(img_otsu, kernel, iterations=20)
@@ -172,7 +168,7 @@ def homography(rect, image, plot=False):
 
     heightA = np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2))
     heightB = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
-    maxHeight = max(int(heightA), int(heightB)) +700
+    maxHeight = max(int(heightA), int(heightB)) + 700
 
     dst = np.array([
         [0, 0],

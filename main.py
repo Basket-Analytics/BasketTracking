@@ -6,7 +6,6 @@ import os.path
 from rectify_court import *
 from ball_detect_track import *
 from plot_tools import plt_plot
-from extract_videoframe import *
 
 TOPCUT = 320
 
