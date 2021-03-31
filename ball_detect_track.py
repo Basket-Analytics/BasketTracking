@@ -10,6 +10,7 @@ FLANN_INDEX_KDTREE = 1
 index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
 search_params = dict(checks=50)
 flann = cv2.FlannBasedMatcher(index_params, search_params)
+resized_map = None
 
 
 def circle_detect(img, plot=False):
@@ -48,57 +49,24 @@ def ball_detection(img_train_dir, query_frame):
                # [c[0] - c[2] - 5, c[1] + c[2] + 5]) #bl
                for c in centers]
 
-        # Creating SIFT object
-        # sift = cv2.xfeatures2d.SIFT_create()
-
         for ball in img_train:
-            # kp_train = sift.detect(ball)
-            # kp_train, des_train = sift.compute(ball, kp_train)
             for bb in bbs:
                 focus = img_query[bb[0][1]:bb[1][1], bb[0][0]:bb[1][0]]
                 if focus.shape[0] > ball.shape[0] and focus.shape[1] > ball.shape[1]:
                     res = cv2.matchTemplate(focus, ball, cv2.TM_CCORR_NORMED)  # NORMALIZED CROSS CORRELATION
                     if np.max(res) >= 0.98:
                         return bb
-                """ focus = img_query[bb[0][1]:bb[1][1], bb[0][0]:bb[1][0]]
-
-                # Detecting Keypoints in the two images
-                kp_query = sift.detect(focus)
-
-                # Computing the descriptors for each keypoint
-                kp_query, des_query = sift.compute(focus, kp_query)
-
-                # Initializing the matching algorithm
-                FLANN_INDEX_KDTREE = 1
-                index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
-                search_params = dict(checks=50)
-                flann = cv2.FlannBasedMatcher(index_params, search_params)
-                # Matching the descriptors
-                matches = flann.knnMatch(des_query, des_train, k=2)
-
-
-                # Keeping only good matches as per Lowe's ratio test.
-                good = []
-                for m, n in matches:
-                    if m.distance < 0.7 * n.distance:
-                        good.append(m)
-                if len(good) >= 4:
-                    img_query = cv2.rectangle(img_query, (bb[0][0], bb[0][1]), (bb[1][0], bb[1][1]), (0, 255, 0), 4)
-                    plt_plot(img_query, cmap='gray')
-                    return bb
-                    """
 
     return None
 
 
 def find_ball_video(video):
-    pano = cv2.imread("pano_enhanced.png")
     while video.isOpened():
         ok, frame = video.read()
         if ok:
             frame = frame[TOPCUT:, :]
-            resized = cv2.resize(pano, (frame.shape[1], frame.shape[0]))
-            cv2.imshow("Tracking", np.vstack((frame, resized)))
+            if resized_map is not None: frame[-(resized_map.shape[0]):, -(resized_map.shape[1]):] = resized_map
+            cv2.imshow("Tracking", frame)
             if cv2.waitKey(5) & 0xFF == ord('q'):
                 break
 
@@ -109,7 +77,8 @@ def find_ball_video(video):
             return None, None
 
     img_query = cv2.rectangle(frame, (bb[0][0], bb[0][1]), (bb[1][0], bb[1][1]), (0, 255, 0), 4)
-    cv2.imshow("Tracking", np.vstack((img_query, resized)))
+    if resized_map is not None: frame[-(resized_map.shape[0]):, -(resized_map.shape[1]):] = resized_map
+    cv2.imshow("Tracking", frame)
     return bb, frame
 
 
@@ -172,13 +141,14 @@ def ball_tracker(video_directory, map2d):
                 M, mask = cv2.findHomography(dst_pts, src_pts, cv2.RANSAC, 5.0)
 
                 homo = M1 @ (M @ ball_center.reshape((3, -1)))
-            
+
                 homo = np.int32(homo / homo[-1]).ravel()
-                print(homo)
 
                 cv2.circle(map2d, (homo[0], homo[1]), 10, (0, 0, 255), 5)
-                resized = cv2.resize(map2d, (frame.shape[1], frame.shape[0]))
-                cv2.imshow("Tracking", np.vstack((frame, resized)))
+                resized_map = cv2.resize(map2d, (400, 200))
+                frame[-(resized_map.shape[0]):, -(resized_map.shape[1]):] = resized_map
+
+                cv2.imshow("Tracking", frame)
 
             else:
                 # after 10 frames detect
