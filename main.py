@@ -81,12 +81,15 @@ if __name__ == '__main__':
     rectified = rectify(pano_enhanced, corners, plot=True)
 
     # correspondences map-pano
+    # TODO: riguardare il sotto
     map = cv2.imread("resources/2d_map.png")
     scale = rectified.shape[0] / map.shape[0]
     map = cv2.resize(map, (int(scale * map.shape[1]), int(scale * map.shape[0])))
     resized = cv2.resize(rectified, (map.shape[1], map.shape[0]))
 
-    ball_tracker("resources/Short4Mosaicing.mp4")
+    map = cv2.resize(map, (rectified.shape[1], rectified.shape[0]))
+
+    ball_tracker("resources/Short4Mosaicing.mp4", map)
 
 # fare tracking ogni t secondi
 

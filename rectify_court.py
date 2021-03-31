@@ -180,7 +180,7 @@ def homography(rect, image, plot=False):
     warped = cv2.warpPerspective(image, M, (maxWidth, maxHeight))
 
     if plot: plt_plot(warped)
-    return warped
+    return warped, M
 
 
 def rectify(pano_enhanced, corners, plot=False):
@@ -194,9 +194,15 @@ def rectify(pano_enhanced, corners, plot=False):
          [corners[2][0] - 1870, corners[2][1]],
          [corners[3][0] - 1870, corners[3][1]]
          ])
-    homography(corners, pano_enhanced)
-    h1 = homography(cornersL, panoL)
-    h2 = homography(cornersR, panoR)
+    M = homography(corners, pano_enhanced)[1]
+    np.save("Rectify1.npy", M)
+
+    h1, ML = homography(cornersL, panoL)
+    np.save("RectifyL.npy", ML)
+
+    h2, MR = homography(cornersR, panoR)
+    np.save("RectifyR.npy", MR)
+
     # rectified = np.hstack((h1, cv2.resize(h2, (int((h2.shape[0] / h1.shape[0]) * h1.shape[1]), h1.shape[0]))))
     rectified = np.hstack((h1, cv2.resize(h2, (h1.shape[1], h1.shape[0]))))
     cv2.imwrite("rectified.png", rectified)

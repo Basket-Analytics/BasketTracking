@@ -113,7 +113,11 @@ def find_ball_video(video):
     return bb, frame
 
 
-def ball_tracker(video_directory):
+def ball_tracker(video_directory, map2d):
+    M1 = np.load("Rectify1.npy")
+    ML = np.load("RectifyL.npy")
+    MR = np.load("RectifyR.npy")
+
     def init_tracker(video):
         # Initialize tracker with first frame and bounding box
         bbox, frame = find_ball_video(video)
@@ -138,7 +142,6 @@ def ball_tracker(video_directory):
     kp1, des1 = sift.compute(pano, kp1)
 
     while video.isOpened():
-        # Read a new frame
         ok, frame = video.read()
         if ok:
             frame = frame[TOPCUT:, :]
@@ -155,7 +158,7 @@ def ball_tracker(video_directory):
                 cv2.rectangle(frame, p1, p2, (255, 0, 0), 2, 1)
                 found = True
 
-                # DRAW POINT IN THE MAP
+                # DRAW POINT/BALL IN THE MAP
                 kp2 = sift.detect(frame)
                 kp2, des2 = sift.compute(frame, kp2)
                 matches = flann.knnMatch(des1, des2, k=2)
@@ -168,11 +171,13 @@ def ball_tracker(video_directory):
                 dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
                 M, mask = cv2.findHomography(dst_pts, src_pts, cv2.RANSAC, 5.0)
 
-                homo = M @ ball_center.reshape((3, -1))
+                homo = M1 @ (M @ ball_center.reshape((3, -1)))
+            
                 homo = np.int32(homo / homo[-1]).ravel()
+                print(homo)
 
-                cv2.circle(pano, (homo[0], homo[1]), 10, (0, 0, 255), 5)
-                resized = cv2.resize(pano, (frame.shape[1], frame.shape[0]))
+                cv2.circle(map2d, (homo[0], homo[1]), 10, (0, 0, 255), 5)
+                resized = cv2.resize(map2d, (frame.shape[1], frame.shape[0]))
                 cv2.imshow("Tracking", np.vstack((frame, resized)))
 
             else:
