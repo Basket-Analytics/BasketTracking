@@ -10,7 +10,6 @@ FLANN_INDEX_KDTREE = 1
 index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
 search_params = dict(checks=50)
 flann = cv2.FlannBasedMatcher(index_params, search_params)
-resized_map = None
 
 
 def circle_detect(img, plot=False):
@@ -76,13 +75,16 @@ def find_ball_video(video):
         else:
             return None, None
 
-    img_query = cv2.rectangle(frame, (bb[0][0], bb[0][1]), (bb[1][0], bb[1][1]), (0, 255, 0), 4)
+    frame = cv2.rectangle(frame, (bb[0][0], bb[0][1]), (bb[1][0], bb[1][1]), (0, 255, 0), 4)
     if resized_map is not None: frame[-(resized_map.shape[0]):, -(resized_map.shape[1]):] = resized_map
     cv2.imshow("Tracking", frame)
     return bb, frame
 
 
 def ball_tracker(video_directory, map2d):
+    global resized_map
+    resized_map = None
+
     M1 = np.load("Rectify1.npy")
     ML = np.load("RectifyL.npy")
     MR = np.load("RectifyR.npy")
