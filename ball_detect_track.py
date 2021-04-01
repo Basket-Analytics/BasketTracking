@@ -3,6 +3,7 @@ import os.path
 import numpy as np
 
 from plot_tools import plt_plot
+from feet_detection import get_players_pos
 from main import TOPCUT
 
 MAX_TRACK = 20
@@ -81,6 +82,21 @@ def find_ball_video(video):
     return bb, frame
 
 
+def get_homography(frame, sift, des1, kp1):
+    kp2 = sift.detect(frame)
+    kp2, des2 = sift.compute(frame, kp2)
+    matches = flann.knnMatch(des1, des2, k=2)
+    good = []
+    for m, n in matches:
+        if m.distance < 0.7 * n.distance:
+            good.append(m)
+
+    src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
+    dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
+    M, mask = cv2.findHomography(dst_pts, src_pts, cv2.RANSAC, 5.0)
+    return M
+
+
 def ball_tracker(video_directory, map2d):
     global resized_map
     resized_map = None
@@ -130,21 +146,12 @@ def ball_tracker(video_directory, map2d):
                 found = True
 
                 # DRAW POINT/BALL IN THE MAP
-                kp2 = sift.detect(frame)
-                kp2, des2 = sift.compute(frame, kp2)
-                matches = flann.knnMatch(des1, des2, k=2)
-                good = []
-                for m, n in matches:
-                    if m.distance < 0.7 * n.distance:
-                        good.append(m)
-
-                src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
-                dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
-                M, mask = cv2.findHomography(dst_pts, src_pts, cv2.RANSAC, 5.0)
-
+                M = get_homography(frame, sift, des1, kp1)
                 homo = M1 @ (M @ ball_center.reshape((3, -1)))
-
                 homo = np.int32(homo / homo[-1]).ravel()
+
+                warped_kpts, frame = get_players_pos(frame, M, M1)
+                [cv2.circle(map2d, (k[0], k[1]), 10, (0, 255, 0), 5) for k in warped_kpts]
 
                 cv2.circle(map2d, (homo[0], homo[1]), 10, (0, 0, 255), 5)
                 resized_map = cv2.resize(map2d, (400, 200))
