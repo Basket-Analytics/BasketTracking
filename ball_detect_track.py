@@ -60,25 +60,24 @@ def ball_detection(img_train_dir, query_frame):
     return None
 
 
-def find_ball_video(video):
+def find_ball_video(video, map2d):
     while video.isOpened():
         ok, frame = video.read()
         if ok:
             frame = frame[TOPCUT:, :]
-            if resized_map is not None: frame[-(resized_map.shape[0]):, -(resized_map.shape[1]):] = resized_map
-            cv2.imshow("Tracking", frame)
-            if cv2.waitKey(5) & 0xFF == ord('q'):
-                break
-
+            # if resized_map is not None: frame[-(resized_map.shape[0]):, -(resized_map.shape[1]):] = resized_map
+            cv2.imshow("Tracking", np.vstack((frame, cv2.resize(map2d, (frame.shape[1], frame.shape[1] // 2)))))
             bb = ball_detection('resources/ball/', frame)
             if bb is not None:
+                break
+            if cv2.waitKey(5) & 0xFF == ord('q'):
                 break
         else:
             return None, None
 
     frame = cv2.rectangle(frame, (bb[0][0], bb[0][1]), (bb[1][0], bb[1][1]), (0, 255, 0), 4)
-    if resized_map is not None: frame[-(resized_map.shape[0]):, -(resized_map.shape[1]):] = resized_map
-    cv2.imshow("Tracking", frame)
+    # if resized_map is not None: frame[-(resized_map.shape[0]):, -(resized_map.shape[1]):] = resized_map
+    cv2.imshow("Tracking", np.vstack((frame, cv2.resize(map2d, (frame.shape[1], frame.shape[1] // 2)))))
     return bb, frame
 
 
@@ -102,12 +101,10 @@ def ball_tracker(video_directory, map2d):
     resized_map = None
 
     M1 = np.load("Rectify1.npy")
-    ML = np.load("RectifyL.npy")
-    MR = np.load("RectifyR.npy")
 
     def init_tracker(video):
         # Initialize tracker with first frame and bounding box
-        bbox, frame = find_ball_video(video)
+        bbox, frame = find_ball_video(video, map2d)
         if bbox is not None:
             bbox = (bbox[0][0], bbox[0][1], bbox[1][0] - bbox[0][0], bbox[1][1] - bbox[0][1])
             tracker.init(frame, bbox)
@@ -151,13 +148,15 @@ def ball_tracker(video_directory, map2d):
                 homo = np.int32(homo / homo[-1]).ravel()
 
                 warped_kpts, frame = get_players_pos(frame, M, M1)
-                [cv2.circle(map2d, (k[0], k[1]), 10, (0, 255, 0), 5) for k in warped_kpts]
+                [cv2.circle(map2d, (k[0][0], k[0][1]), 10, (k[1]), 7) for k in warped_kpts]
+                [cv2.circle(map2d, (k[0][0], k[0][1]), 13, (0, 0, 0), 3) for k in warped_kpts] # ads border
 
-                cv2.circle(map2d, (homo[0], homo[1]), 10, (0, 0, 255), 5)
-                resized_map = cv2.resize(map2d, (400, 200))
-                frame[-(resized_map.shape[0]):, -(resized_map.shape[1]):] = resized_map
+                cv2.circle(map2d, (homo[0], homo[1]), 10, (0, 0, 255), 5)  # for the ball
+                # bottom right map visualization
+                # resized_map = cv2.resize(map2d, (400, 200))
+                # frame[-(resized_map.shape[0]):, -(resized_map.shape[1]):] = resized_map
 
-                cv2.imshow("Tracking", frame)
+                cv2.imshow("Tracking", np.vstack((frame, cv2.resize(map2d, (frame.shape[1], frame.shape[1] // 2)))))
 
             else:
                 # after 10 frames detect
@@ -170,8 +169,6 @@ def ball_tracker(video_directory, map2d):
             cv2.putText(frame, tracker_types + " Tracker",
                         (100, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (50, 170, 50), 2)
 
-            # Display result
-            # cv2.imshow("Tracking", frame)
             # Exit if ESC pressed
             k = cv2.waitKey(5) & 0xff
             if k == 27: break
