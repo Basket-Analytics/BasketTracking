@@ -126,6 +126,7 @@ def ball_tracker(video_directory, map2d):
     kp1, des1 = sift.compute(pano, kp1)
 
     while video.isOpened():
+
         ok, frame = video.read()
         if ok:
             frame = frame[TOPCUT:, :]
@@ -149,7 +150,7 @@ def ball_tracker(video_directory, map2d):
 
                 warped_kpts, frame = get_players_pos(frame, M, M1)
                 [cv2.circle(map2d, (k[0][0], k[0][1]), 10, (k[1]), 7) for k in warped_kpts]
-                [cv2.circle(map2d, (k[0][0], k[0][1]), 13, (0, 0, 0), 3) for k in warped_kpts] # ads border
+                [cv2.circle(map2d, (k[0][0], k[0][1]), 13, (0, 0, 0), 3) for k in warped_kpts]  # ads border
 
                 cv2.circle(map2d, (homo[0], homo[1]), 10, (0, 0, 255), 5)  # for the ball
                 # bottom right map visualization
