@@ -11,10 +11,10 @@ from detectron2.data import MetadataCatalog, DatasetCatalog
 
 from plot_tools import plt_plot
 
-COLORS = {  # in BGR FORMAT
-    'green': ([56, 50, 50], [110, 255, 255]),  # green
-    'blue': ([110, 50, 50], [130, 255, 255]),
-    'white': ([0, 0, 191], [255, 38, 255])  # white
+COLORS = {  # in HSV FORMAT
+    'green': ([56, 50, 50], [100, 255, 255], [72, 200, 153]), #NIGERIA
+    'gray': ([0, 0, 0], [255, 35, 70], [120, 0, 0]), #REFEREE
+    'white': ([0, 0, 191], [255, 38, 255], [255, 0, 255]) #USA
 }
 
 
@@ -29,41 +29,28 @@ def count_non_black(image):
 def get_players_pos(frame, M, M1):
     warped_kpts = []
 
-    """    # Inference with a keypoint detection model
-    cfg = get_cfg()  # get a fresh new config
-    cfg.merge_from_file(model_zoo.get_config_file(
-        "COCO-Keypoints/keypoint_rcnn_R_50_FPN_3x.yaml"))  # LOAD MODEL
-    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7  # set threshold for this model
-    cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
-        "COCO-Keypoints/keypoint_rcnn_R_50_FPN_3x.yaml")  # LOAD WEIGHTS
-    predictor = DefaultPredictor(cfg)
-    outputs = predictor(frame)"""
-
     # Image segmentation model
     cfg_seg = get_cfg()
     cfg_seg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
-    cfg_seg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5  # set threshold for this model
+    cfg_seg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7  # set threshold for this model
     cfg_seg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
     predictor_seg = DefaultPredictor(cfg_seg)
     outputs_seg = predictor_seg(frame)
 
-    ppl = outputs_seg["instances"].pred_masks.cpu().numpy()
+
+    indices = outputs_seg["instances"].pred_classes.cpu().numpy()
+    predicted_masks = outputs_seg["instances"].pred_masks.cpu().numpy()
+
+    ppl = []
+    for i, entry in enumerate(indices): #picking only class 0 (people)
+        if entry == 0:
+            ppl.append(predicted_masks[i])
 
     indexes_ppl = np.array([np.array(np.where(p ==True)).T for p in ppl]) #returns two np arrays per person, one for x one for y
-
-    #bbs = outputs['instances'].pred_boxes.tensor.cpu().numpy()
-
-    # cv2.rectangle(frame, (bbs[0][0], bbs[0][1]), (bbs[0][2], bbs[0][3]), (0, 255, 0), 4)
-
-    #keypoints = outputs["instances"].pred_keypoints
-    #keypoints = keypoints.cpu().numpy()
-    #print(keypoints[0])
 
     # calculate estimated position of players in the 2D map
     for keypoint, p in zip(indexes_ppl, ppl):
 
-        #bb = np.int32(bb)
-        #crop_img = frame[bb[1]:bb[3], bb[0]:bb[2]]
         top = min(keypoint[:, 0])
         bottom = max(keypoint[:, 0])
         left = min(keypoint[:, 1])
@@ -92,15 +79,10 @@ def get_players_pos(frame, M, M1):
         homo = M1 @ (M @ kpt.reshape((3, -1)))
         homo = np.int32(homo / homo[-1]).ravel()
         if best_mask[1] != '':
-            color = np.array(cv2.cvtColor(np.uint8([[COLORS[best_mask[1]][1]]]), cv2.COLOR_HSV2BGR)).ravel()
+            color = np.array(cv2.cvtColor(np.uint8([[COLORS[best_mask[1]][2]]]), cv2.COLOR_HSV2BGR)).ravel()
             color = (int(color[0]), int(color[1]), int(color[2]))
             warped_kpts.append((homo, color))  # appending also the color
-            cv2.circle(frame, (keypoint[head, 1], keypoint[foot, 0]), 2, tuple(color), 5)
-
-        # draws skeletons
-        '''v = Visualizer(frame[:, :, ::-1], MetadataCatalog.get(cfg.DATASETS.TRAIN[0]), scale=1.2)
-        out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
-        cv2.imshow("frame", out.get_image()[:, :, ::-1])'''
+            cv2.circle(frame, (keypoint[head, 1], keypoint[foot, 0]), 2, color, 5)
 
     return warped_kpts, frame
 

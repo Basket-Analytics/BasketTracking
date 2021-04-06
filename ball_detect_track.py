@@ -38,7 +38,7 @@ def ball_detection(img_train_dir, query_frame):
     for file in os.listdir(img_train_dir):
         img_train.append(cv2.imread(img_train_dir + file, 0))
 
-    img_query = cv2.cvtColor(query_frame, cv2.COLOR_RGB2GRAY)
+    img_query = cv2.cvtColor(query_frame, cv2.COLOR_BGR2GRAY)
 
     centers = circle_detect(img_query)
     if centers is not None:
