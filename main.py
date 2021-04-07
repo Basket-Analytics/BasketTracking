@@ -6,9 +6,8 @@ import os.path
 from rectify_court import *
 from ball_detect_track import *
 from plot_tools import plt_plot
-from feet_detection import *
-
-TOPCUT = 320
+from feet_detect import FeetDetector
+from video_handler import *
 
 
 def get_frames(video_path, central_frame, mod):
@@ -87,14 +86,10 @@ if __name__ == '__main__':
     scale = rectified.shape[0] / map.shape[0]
     map = cv2.resize(map, (int(scale * map.shape[1]), int(scale * map.shape[0])))
     resized = cv2.resize(rectified, (map.shape[1], map.shape[0]))
-
     map = cv2.resize(map, (rectified.shape[1], rectified.shape[0]))
-    
-    predictor = model_initialization()
-    
-    ball_tracker("resources/Short4Mosaicing.mp4", map, predictor)
 
-# fare tracking ogni t secondi
-
-# PARTI DA QUI
-# provare una volta individuata la palla a spostare sulla mappa
+    video = cv2.VideoCapture("resources/Short4Mosaicing.mp4")
+    feet_detector = FeetDetector(map)
+    ball_detect_track = BallDetectTrack(map)
+    video_handler = VideoHandler(pano_enhanced, video, ball_detect_track, feet_detector)
+    video_handler.run_detectors()
