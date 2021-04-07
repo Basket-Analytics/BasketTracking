@@ -25,16 +25,19 @@ def count_non_black(image):
             colored += 1
     return colored
 
-
-def get_players_pos(frame, M, M1):
-    warped_kpts = []
-
-    # Image segmentation model
+def model_initialization():
     cfg_seg = get_cfg()
     cfg_seg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
     cfg_seg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7  # set threshold for this model
     cfg_seg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
     predictor_seg = DefaultPredictor(cfg_seg)
+    return predictor_seg
+
+
+def get_players_pos(frame, M, M1, predictor_seg):
+
+    warped_kpts = []
+    # Image segmentation model
     outputs_seg = predictor_seg(frame)
 
 

@@ -6,6 +6,7 @@ import os.path
 from rectify_court import *
 from ball_detect_track import *
 from plot_tools import plt_plot
+from feet_detection import *
 
 TOPCUT = 320
 
@@ -88,8 +89,10 @@ if __name__ == '__main__':
     resized = cv2.resize(rectified, (map.shape[1], map.shape[0]))
 
     map = cv2.resize(map, (rectified.shape[1], rectified.shape[0]))
-
-    ball_tracker("resources/Short4Mosaicing.mp4", map)
+    
+    predictor = model_initialization()
+    
+    ball_tracker("resources/Short4Mosaicing.mp4", map, predictor)
 
 # fare tracking ogni t secondi
 
