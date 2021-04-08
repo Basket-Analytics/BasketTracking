@@ -1,6 +1,8 @@
 import torch
 import cv2
 import numpy as np
+from player import *
+from operator import itemgetter
 
 # import some common detectron2 utilities
 from detectron2 import model_zoo
@@ -13,9 +15,17 @@ from plot_tools import plt_plot
 
 COLORS = {  # in HSV FORMAT
     'green': ([56, 50, 50], [100, 255, 255], [72, 200, 153]),  # NIGERIA
-    'gray': ([0, 0, 0], [255, 35, 70], [120, 0, 0]),  # REFEREE
-    'white': ([0, 0, 191], [255, 38, 255], [255, 0, 255])  # USA
+    'referee': ([0, 0, 0], [255, 35, 65], [120, 0, 0]),  # REFEREE
+    'white': ([0, 0, 220], [255, 15, 255], [255, 0, 255])  # USA
 }
+
+IOU_TH = 0.3
+
+
+def hsv2bgr(color_hsv):
+    color_bgr = np.array(cv2.cvtColor(np.uint8([[color_hsv]]), cv2.COLOR_HSV2BGR)).ravel()
+    color_bgr = (int(color_bgr[0]), int(color_bgr[1]), int(color_bgr[2]))
+    return color_bgr
 
 
 class FeetDetector:
@@ -28,7 +38,14 @@ class FeetDetector:
         cfg_seg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
         self.predictor_seg = DefaultPredictor(cfg_seg)
         self.bbs = []
+        self.players = []
         self.map2d = map2d
+        self.map2d_updated = None
+
+        for i in range(1, 6):
+            self.players.append(Player(i, 'green', hsv2bgr(COLORS['green'][2])))
+            self.players.append(Player(i, 'white', hsv2bgr(COLORS['white'][2])))
+        self.players.append(Player(0, 'referee', hsv2bgr(COLORS['referee'][2])))
 
     @staticmethod
     def count_non_black(image):
@@ -38,7 +55,44 @@ class FeetDetector:
                 colored += 1
         return colored
 
-    def get_players_pos(self, M, M1, frame):
+    def bb_intersection_over_union(self, boxA, boxB):
+        # sources: https://www.pyimagesearch.com/2016/11/07/intersection-over-union-iou-for-object-detection/
+        # determine the (x, y)-coordinates of the intersection rectangle
+        xA = max(boxA[0], boxB[0])  # horizontal tl
+        yA = max(boxA[1], boxB[1])  # vertical tl
+        xB = min(boxA[2], boxB[2])  # horizontal br
+        yB = min(boxA[3], boxB[3])  # vertical br
+        # compute the area of intersection rectangle
+        interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
+        # compute the area of both the prediction and ground-truth
+        # rectangles
+        boxAArea = (boxA[2] - boxA[0] + 1) * (boxA[3] - boxA[1] + 1)
+        boxBArea = (boxB[2] - boxB[0] + 1) * (boxB[3] - boxB[1] + 1)
+        # compute the intersection over union by taking the intersection
+        # area and dividing it by the sum of prediction + ground-truth
+        # areas - the interesection area
+        iou = interArea / float(boxAArea + boxBArea - interArea)
+        # return the intersection over union value
+        return iou
+
+    def print_in_2dmap(self, frame, timestamp, writer):
+        map2d = self.map2d
+        for p in self.players:
+            if p.team != 'referee':
+                try:
+                    cv2.circle(map2d, (p.positions[timestamp]), 10, p.color, 7)
+                    cv2.circle(map2d, (p.positions[timestamp]), 13, (0, 0, 0), 3)
+                    cv2.putText(map2d, str(p.ID), (p.positions[timestamp]),
+                                cv2.FONT_HERSHEY_SIMPLEX, 2,
+                                (0, 0, 0), 2, cv2.LINE_AA)
+                except KeyError:
+                    pass
+        vis = np.vstack((frame, cv2.resize(map2d, (frame.shape[1], frame.shape[1] // 2))))
+        cv2.imshow("Tracking", vis)
+        writer.writeFrame(vis)
+        self.map2d_updated = map2d
+
+    def get_players_pos(self, M, M1, frame, timestamp, out):
         warped_kpts = []
         outputs_seg = self.predictor_seg(frame)
 
@@ -51,7 +105,8 @@ class FeetDetector:
                 ppl.append(predicted_masks[i])
 
         indexes_ppl = np.array(
-            [np.array(np.where(p == True)).T for p in ppl])  # returns two np arrays per person, one for x one for y
+            [np.array(np.where(p == True)).T for p in ppl])
+        # returns two np arrays per person, one for x one for y
 
         # calculate estimated position of players in the 2D map
         for keypoint, p in zip(indexes_ppl, ppl):
@@ -60,11 +115,12 @@ class FeetDetector:
             bottom = max(keypoint[:, 0])
             left = min(keypoint[:, 1])
             right = max(keypoint[:, 1])
+            bbox_person = (top, left, bottom, right)
 
             tmp_tensor = p.reshape((p.shape[0], p.shape[1], 1))
             crop_img = np.where(tmp_tensor, frame, 0)
 
-            crop_img = crop_img[top:bottom, left:right]
+            crop_img = crop_img[top:(bottom - int(0.3 * (bottom - top))), left:right]
             crop_img = cv2.cvtColor(crop_img, cv2.COLOR_BGR2HSV)
 
             best_mask = [0, '']  # (num_non_black, color)
@@ -83,17 +139,47 @@ class FeetDetector:
             kpt = np.array([keypoint[head, 1], keypoint[foot, 0], 1])  # perspective space
             homo = M1 @ (M @ kpt.reshape((3, -1)))
             homo = np.int32(homo / homo[-1]).ravel()
+            # homo = [vertical pos, horizontal pos]
+            # homo has the position of player in the 2D map
+
             if best_mask[1] != '':
-                color = np.array(cv2.cvtColor(np.uint8([[COLORS[best_mask[1]][2]]]), cv2.COLOR_HSV2BGR)).ravel()
-                color = (int(color[0]), int(color[1]), int(color[2]))
-                warped_kpts.append((homo, color))  # appending also the color
+                color = hsv2bgr(COLORS[best_mask[1]][2])
+                warped_kpts.append((homo, color, best_mask[1], bbox_person))  # appending also the color
                 cv2.circle(frame, (keypoint[head, 1], keypoint[foot, 0]), 2, color, 5)
 
-        [cv2.circle(self.map2d, (k[0][0], k[0][1]), 10, (k[1]), 7) for k in warped_kpts]
-        [cv2.circle(self.map2d, (k[0][0], k[0][1]), 13, (0, 0, 0), 3) for k in warped_kpts]  # adds border
-        cv2.imshow("Tracking",
-                   np.vstack((frame, cv2.resize(self.map2d, (frame.shape[1], frame.shape[1] // 2)))))
-        return warped_kpts, frame
+        for kpt in warped_kpts:
+            (homo, color, color_key, bbox) = kpt
+            # updates if possible the player position and bbox
+            iou_scores = []  # (current_iou, player)
+            for player in self.players:
+                if (player.team == color_key) and (player.previous_bb is not None) and \
+                        (0 <= homo[0] < self.map2d.shape[0]) and (0 <= homo[1] < self.map2d.shape[1]):
+                    iou_current = self.bb_intersection_over_union(bbox, player.previous_bb)
+                    # print(iou_current)
+                    if iou_current >= IOU_TH:
+                        iou_scores.append((iou_current, player))
+
+            if len(iou_scores) > 0:
+                # only update player
+                max_iou = max(iou_scores, key=itemgetter(0))
+                max_iou[1].previous_bb = bbox
+                max_iou[1].positions[timestamp] = (homo[0], homo[1])
+            else:
+                for player in self.players:
+                    if (player.team == color_key) and (player.previous_bb is None):
+                        player.previous_bb = bbox
+                        player.positions[timestamp] = (homo[0], homo[1])
+                        break
+
+        for player in self.players:
+            if len(player.positions) > 0:
+                if (timestamp - max(player.positions.keys())) >= 5:
+                    player.positions = {}
+                    player.previous_bb = None
+
+        self.print_in_2dmap(frame, timestamp, out)
+
+        return frame
 
 
 if __name__ == '__main__':

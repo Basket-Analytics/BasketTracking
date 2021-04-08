@@ -5,7 +5,7 @@ import numpy as np
 from plot_tools import plt_plot
 from main import TOPCUT
 
-MAX_TRACK = 3
+MAX_TRACK = 5
 
 
 class BallDetectTrack:
@@ -62,18 +62,15 @@ class BallDetectTrack:
                         if np.max(res) >= th:
                             bbox = bb
                             bb = (bbox[0][0], bbox[0][1], bbox[1][0] - bbox[0][0], bbox[1][1] - bbox[0][1])
-                            self.tracker.init(query_frame, bb)
                             return bb
-        cv2.imshow("Tracking",
-                   np.vstack((query_frame, cv2.resize(self.map2d, (query_frame.shape[1], query_frame.shape[1] // 2)))))
         return None
 
-    def ball_tracker(self, M, M1, frame):
+    def ball_tracker(self, M, M1, frame, writer):
 
         if self.do_detection:
             bbox = self.ball_detection("resources/ball/", frame)
-            print('entro in ball detect')
             if bbox is not None:
+                self.tracker.init(frame, bbox)
                 self.do_detection = not self.do_detection
         else:
             res, bbox = self.tracker.update(frame)
@@ -98,9 +95,11 @@ class BallDetectTrack:
             elif self.ball_detection('resources/ball/',
                                      clean_frame[p1[1] - self.ball_padding:p2[1] + self.ball_padding,
                                      p1[0] - self.ball_padding:p2[0] + self.ball_padding],
-                                     0.8) is not None:
-                print("entro")
+                                     0.5) is not None:
                 self.check_track = MAX_TRACK
+                vis = np.vstack((frame, cv2.resize(self.map2d, (frame.shape[1], frame.shape[1] // 2))))
+                cv2.imshow("Tracking", vis)
+                writer.writeFrame(vis)
                 self.do_detection = False
 
             else:  # se è 0 check track e non ho trovato la ball

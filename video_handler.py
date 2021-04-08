@@ -1,6 +1,7 @@
 from ball_detect_track import *
 from plot_tools import *
 from feet_detect import *
+import skvideo.io
 
 TOPCUT = 320
 
@@ -21,19 +22,28 @@ class VideoHandler:
         self.ball_detector = ball_detector
 
     def run_detectors(self):
+        writer = skvideo.io.FFmpegWriter("demo.mp4")
+        time_index = 0
         while self.video.isOpened():
             ok, frame = self.video.read()
             if not ok:
                 break
             else:
-                frame = frame[TOPCUT:, :]
-                M = self.get_homography(frame, self.des1, self.kp1)
-                self.ball_detector.ball_tracker(M, self.M1, frame)
-                self.feet_detector.get_players_pos(M, self.M1, frame)
+                if 0 <= time_index < 20:
+                    frame = frame[TOPCUT:, :]
+                    M = self.get_homography(frame, self.des1, self.kp1)
+                    self.feet_detector.get_players_pos(M, self.M1, frame, time_index, writer)
+                    self.ball_detector.map2d = self.feet_detector.map2d_updated
+                    self.ball_detector.ball_tracker(M, self.M1, frame, writer)
 
-                k = cv2.waitKey(10) & 0xff
-                if k == 27:
-                    break
+                    k = cv2.waitKey(1) & 0xff
+                    if k == 27:
+                        break
+
+            time_index += 1
+        self.video.release()
+        writer.close()
+        cv2.destroyAllWindows()
 
     def get_homography(self, frame, des1, kp1):
         kp2 = self.sift.detect(frame)
