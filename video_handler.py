@@ -10,6 +10,7 @@ index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
 search_params = dict(checks=50)
 flann = cv2.FlannBasedMatcher(index_params, search_params)
 
+
 class VideoHandler:
     def __init__(self, pano, video, ball_detector, feet_detector, map_2d):
         self.M1 = np.load("Rectify1.npy")
@@ -29,14 +30,19 @@ class VideoHandler:
             if not ok:
                 break
             else:
-                if 0 <= time_index < 20:
+                if 0 <= time_index < 200:
+
+                    print("\r Computing DEMO: " + str(int(100 * time_index / 200)) + "%",
+                          flush=True, end='')
+
                     frame = frame[TOPCUT:, :]
                     M = self.get_homography(frame, self.des1, self.kp1)
-                    frame, self.map_2d, map_2d_text = self.feet_detector.get_players_pos(M, self.M1, frame, time_index, self.map_2d)
+                    frame, self.map_2d, map_2d_text = self.feet_detector.get_players_pos(M, self.M1, frame, time_index,
+                                                                                         self.map_2d)
                     frame, ball_map_2d = self.ball_detector.ball_tracker(M, self.M1, frame, self.map_2d.copy())
                     vis = np.vstack((frame, cv2.resize(map_2d_text, (frame.shape[1], frame.shape[1] // 2))))
 
-                    cv2.imshow("Tracking", vis)
+                    # cv2.imshow("Tracking", vis)
                     writer.writeFrame(cv2.cvtColor(vis, cv2.COLOR_BGR2RGB))
 
                     k = cv2.waitKey(1) & 0xff
