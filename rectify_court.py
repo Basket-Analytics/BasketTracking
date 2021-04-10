@@ -102,7 +102,6 @@ def binarize_erode_dilate(img, plot=False):
     kernel = np.array([[0, 0, 0],
                        [1, 1, 1],
                        [0, 0, 0]], np.uint8)
-
     img_otsu = cv2.erode(img_otsu, kernel, iterations=20)
     img_otsu = cv2.dilate(img_otsu, kernel, iterations=20)
 

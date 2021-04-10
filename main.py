@@ -89,9 +89,16 @@ if __name__ == '__main__':
     map = cv2.resize(map, (rectified.shape[1], rectified.shape[0]))
 
     video = cv2.VideoCapture("resources/Short4Mosaicing.mp4")
-    feet_detector = FeetDetector()
-    ball_detect_track = BallDetectTrack()
+
+    players = []
+    for i in range(1, 6):
+        players.append(Player(i, 'green', hsv2bgr(COLORS['green'][2])))
+        players.append(Player(i, 'white', hsv2bgr(COLORS['white'][2])))
+    players.append(Player(0, 'referee', hsv2bgr(COLORS['referee'][2])))
+
+    feet_detector = FeetDetector(players)
+    ball_detect_track = BallDetectTrack(players)
     video_handler = VideoHandler(pano_enhanced, video, ball_detect_track, feet_detector, map)
     video_handler.run_detectors()
 
-    #RUNNA FINO A 200, SISTEMA PALLA
+    # SISTEMA PALLA, VEDI SE METTERE ALTRO MODELLO

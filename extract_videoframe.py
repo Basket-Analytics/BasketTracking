@@ -1,7 +1,7 @@
 import cv2
 import os
 
-def extract_videoframe(video_dir):
+def extract_videoframe():
     # Read the video from specified path
     cam = cv2.VideoCapture("resources/Short4Mosaicing.mp4")
 
@@ -40,3 +40,6 @@ def extract_videoframe(video_dir):
     # Release all space and windows once done
     cam.release()
     cv2.destroyAllWindows()
+
+if __name__ == '__main__':
+    extract_videoframe()

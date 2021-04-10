@@ -3,18 +3,21 @@ import os.path
 import numpy as np
 
 from plot_tools import plt_plot
+from feet_detect import *
 from main import TOPCUT
 
 MAX_TRACK = 5
+IOU_BALL_PADDING = 20
 
 
 class BallDetectTrack:
-    def __init__(self):
+    def __init__(self, players):
         self.ball_padding = 30
         self.check_track = MAX_TRACK
         self.do_detection = True
         self.tracker_type = 'CSRT'
         self.tracker = cv2.TrackerCSRT_create()
+        self.players = players
 
     @staticmethod
     def circle_detect(img, plot=False):
@@ -64,7 +67,7 @@ class BallDetectTrack:
                             return bb
         return None
 
-    def ball_tracker(self, M, M1, frame, map_2d):
+    def ball_tracker(self, M, M1, frame, map_2d, map_2d_text, timestamp):
 
         if self.do_detection:
             bbox = self.ball_detection("resources/ball/", frame)
@@ -80,6 +83,24 @@ class BallDetectTrack:
             p2 = (int(bbox[0] + bbox[2]), int(bbox[1] + bbox[3]))
             ball_center = np.array([int(bbox[0] + bbox[2] / 2), int(bbox[1] + bbox[3] / 2), 1])
             clean_frame = frame.copy()
+
+            bbox_iou = (bbox[0]-IOU_BALL_PADDING,
+                        bbox[1]- IOU_BALL_PADDING,
+                        bbox[0]+bbox[2]+IOU_BALL_PADDING,
+                        bbox[1]+bbox[3]+IOU_BALL_PADDING)
+            scores = []
+            for p in self.players:
+                if p.team != "referee":
+                    if p.has_ball:
+                        p.has_ball=False
+                    if p.previous_bb is not None:
+                        scores.append((p, FeetDetector.bb_intersection_over_union(bbox_iou, p.previous_bb)))
+
+            print(scores)
+            max_score = max(scores, key=itemgetter(1))
+            max_score[0].has_ball = True
+            cv2.circle(map_2d_text, (max_score[0].positions[timestamp]), 27, (0, 0, 255), 10)
+            print(max_score[0].positions[timestamp])
 
             if self.check_track > 0:
                 homo = M1 @ (M @ ball_center.reshape((3, -1)))

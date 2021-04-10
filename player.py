@@ -6,3 +6,4 @@ class Player:
         self.previous_bb = None
         # dict of tuples {timestamp: (position_y, position_x), ...}
         self.positions = {}
+        self.has_ball = False

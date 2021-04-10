@@ -30,7 +30,7 @@ class VideoHandler:
             if not ok:
                 break
             else:
-                if 0 <= time_index < 200:
+                if 120 <= time_index < 200:
 
                     print("\r Computing DEMO: " + str(int(100 * time_index / 200)) + "%",
                           flush=True, end='')
@@ -39,11 +39,11 @@ class VideoHandler:
                     M = self.get_homography(frame, self.des1, self.kp1)
                     frame, self.map_2d, map_2d_text = self.feet_detector.get_players_pos(M, self.M1, frame, time_index,
                                                                                          self.map_2d)
-                    frame, ball_map_2d = self.ball_detector.ball_tracker(M, self.M1, frame, self.map_2d.copy())
+                    frame, ball_map_2d = self.ball_detector.ball_tracker(M, self.M1, frame, self.map_2d.copy(), map_2d_text, time_index)
                     vis = np.vstack((frame, cv2.resize(map_2d_text, (frame.shape[1], frame.shape[1] // 2))))
 
-                    # cv2.imshow("Tracking", vis)
-                    writer.writeFrame(cv2.cvtColor(vis, cv2.COLOR_BGR2RGB))
+                    cv2.imshow("Tracking", vis)
+                    #writer.writeFrame(cv2.cvtColor(vis, cv2.COLOR_BGR2RGB))
 
                     k = cv2.waitKey(1) & 0xff
                     if k == 27:

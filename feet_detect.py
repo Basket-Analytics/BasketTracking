@@ -30,7 +30,7 @@ def hsv2bgr(color_hsv):
 
 class FeetDetector:
 
-    def __init__(self):
+    def __init__(self, players):
         # Image segmentation model from DETECTRON2
         cfg_seg = get_cfg()
         cfg_seg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
@@ -38,12 +38,7 @@ class FeetDetector:
         cfg_seg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
         self.predictor_seg = DefaultPredictor(cfg_seg)
         self.bbs = []
-        self.players = []
-
-        for i in range(1, 6):
-            self.players.append(Player(i, 'green', hsv2bgr(COLORS['green'][2])))
-            self.players.append(Player(i, 'white', hsv2bgr(COLORS['white'][2])))
-        self.players.append(Player(0, 'referee', hsv2bgr(COLORS['referee'][2])))
+        self.players = players
 
     @staticmethod
     def count_non_black(image):
@@ -53,7 +48,8 @@ class FeetDetector:
                 colored += 1
         return colored
 
-    def bb_intersection_over_union(self, boxA, boxB):
+    @staticmethod
+    def bb_intersection_over_union(boxA, boxB):
         # sources: https://www.pyimagesearch.com/2016/11/07/intersection-over-union-iou-for-object-detection/
         # determine the (x, y)-coordinates of the intersection rectangle
         xA = max(boxA[0], boxB[0])  # horizontal tl
@@ -82,9 +78,14 @@ class FeetDetector:
         predicted_masks = outputs_seg["instances"].pred_masks.cpu().numpy()
 
         ppl = []
+
+        kernel = np.array([[0, 1, 0],
+                           [1, 1, 1],
+                           [0, 1, 0]], np.uint8)
+
         for i, entry in enumerate(indices):  # picking only class 0 (people)
             if entry == 0:
-                ppl.append(predicted_masks[i])
+                ppl.append(np.array(cv2.erode(np.array(predicted_masks[i], dtype=np.uint8), kernel, iterations=4), dtype=bool))
 
         indexes_ppl = np.array(
             [np.array(np.where(p == True)).T for p in ppl])
@@ -98,8 +99,8 @@ class FeetDetector:
             left = min(keypoint[:, 1])
             right = max(keypoint[:, 1])
             bbox_person = (top, left, bottom, right)
-
             tmp_tensor = p.reshape((p.shape[0], p.shape[1], 1))
+
             crop_img = np.where(tmp_tensor, frame, 0)
 
             crop_img = crop_img[top:(bottom - int(0.3 * (bottom - top))), left:right]
@@ -165,11 +166,14 @@ class FeetDetector:
                 try:
                     cv2.circle(map_2d, (p.positions[timestamp]), 10, p.color, 7)
                     cv2.circle(map_2d, (p.positions[timestamp]), 13, (0, 0, 0), 3)
-                    cv2.circle(map_2d_text, (p.positions[timestamp]), 10, p.color, 7)
-                    cv2.circle(map_2d_text, (p.positions[timestamp]), 13, (0, 0, 0), 3)
-                    cv2.putText(map_2d_text, str(p.ID), (p.positions[timestamp]),
-                                cv2.FONT_HERSHEY_SIMPLEX, 2,
-                                (0, 0, 0), 2, cv2.LINE_AA)
+                    cv2.circle(map_2d_text, (p.positions[timestamp]), 25, p.color, -1)
+                    cv2.circle(map_2d_text, (p.positions[timestamp]), 27, (0, 0, 0), 5)
+                    text_size, _ = cv2.getTextSize(str(p.ID), cv2.FONT_HERSHEY_SIMPLEX, 1.5, 3)
+                    text_origin = (p.positions[timestamp][0] - text_size[0] // 2,
+                                   p.positions[timestamp][1] + text_size[1] // 2)
+                    cv2.putText(map_2d_text, str(p.ID), text_origin,
+                                cv2.FONT_HERSHEY_SIMPLEX, 1.5,
+                                (0, 0, 0), 3, cv2.LINE_AA)
                 except KeyError:
                     pass
 
