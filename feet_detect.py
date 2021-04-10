@@ -30,7 +30,7 @@ def hsv2bgr(color_hsv):
 
 class FeetDetector:
 
-    def __init__(self, map2d):
+    def __init__(self):
         # Image segmentation model from DETECTRON2
         cfg_seg = get_cfg()
         cfg_seg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
@@ -39,8 +39,6 @@ class FeetDetector:
         self.predictor_seg = DefaultPredictor(cfg_seg)
         self.bbs = []
         self.players = []
-        self.map2d = map2d
-        self.map2d_updated = None
 
         for i in range(1, 6):
             self.players.append(Player(i, 'green', hsv2bgr(COLORS['green'][2])))
@@ -75,24 +73,8 @@ class FeetDetector:
         # return the intersection over union value
         return iou
 
-    def print_in_2dmap(self, frame, timestamp, writer):
-        map2d = self.map2d
-        for p in self.players:
-            if p.team != 'referee':
-                try:
-                    cv2.circle(map2d, (p.positions[timestamp]), 10, p.color, 7)
-                    cv2.circle(map2d, (p.positions[timestamp]), 13, (0, 0, 0), 3)
-                    cv2.putText(map2d, str(p.ID), (p.positions[timestamp]),
-                                cv2.FONT_HERSHEY_SIMPLEX, 2,
-                                (0, 0, 0), 2, cv2.LINE_AA)
-                except KeyError:
-                    pass
-        vis = np.vstack((frame, cv2.resize(map2d, (frame.shape[1], frame.shape[1] // 2))))
-        cv2.imshow("Tracking", vis)
-        writer.writeFrame(vis)
-        self.map2d_updated = map2d
 
-    def get_players_pos(self, M, M1, frame, timestamp, out):
+    def get_players_pos(self, M, M1, frame, timestamp, map_2d):
         warped_kpts = []
         outputs_seg = self.predictor_seg(frame)
 
@@ -153,7 +135,7 @@ class FeetDetector:
             iou_scores = []  # (current_iou, player)
             for player in self.players:
                 if (player.team == color_key) and (player.previous_bb is not None) and \
-                        (0 <= homo[0] < self.map2d.shape[0]) and (0 <= homo[1] < self.map2d.shape[1]):
+                        (0 <= homo[0] < map_2d.shape[0]) and (0 <= homo[1] < map_2d.shape[1]):
                     iou_current = self.bb_intersection_over_union(bbox, player.previous_bb)
                     # print(iou_current)
                     if iou_current >= IOU_TH:
@@ -177,9 +159,21 @@ class FeetDetector:
                     player.positions = {}
                     player.previous_bb = None
 
-        self.print_in_2dmap(frame, timestamp, out)
+        map_2d_text = map_2d.copy()
+        for p in self.players:
+            if p.team != 'referee':
+                try:
+                    cv2.circle(map_2d, (p.positions[timestamp]), 10, p.color, 7)
+                    cv2.circle(map_2d, (p.positions[timestamp]), 13, (0, 0, 0), 3)
+                    cv2.circle(map_2d_text, (p.positions[timestamp]), 10, p.color, 7)
+                    cv2.circle(map_2d_text, (p.positions[timestamp]), 13, (0, 0, 0), 3)
+                    cv2.putText(map_2d_text, str(p.ID), (p.positions[timestamp]),
+                                cv2.FONT_HERSHEY_SIMPLEX, 2,
+                                (0, 0, 0), 2, cv2.LINE_AA)
+                except KeyError:
+                    pass
 
-        return frame
+        return frame, map_2d, map_2d_text
 
 
 if __name__ == '__main__':

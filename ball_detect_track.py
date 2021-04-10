@@ -9,10 +9,9 @@ MAX_TRACK = 5
 
 
 class BallDetectTrack:
-    def __init__(self, map2d):
+    def __init__(self):
         self.ball_padding = 30
         self.check_track = MAX_TRACK
-        self.map2d = map2d
         self.do_detection = True
         self.tracker_type = 'CSRT'
         self.tracker = cv2.TrackerCSRT_create()
@@ -65,7 +64,7 @@ class BallDetectTrack:
                             return bb
         return None
 
-    def ball_tracker(self, M, M1, frame, writer):
+    def ball_tracker(self, M, M1, frame, map_2d):
 
         if self.do_detection:
             bbox = self.ball_detection("resources/ball/", frame)
@@ -86,10 +85,7 @@ class BallDetectTrack:
                 homo = M1 @ (M @ ball_center.reshape((3, -1)))
                 homo = np.int32(homo / homo[-1]).ravel()
                 cv2.rectangle(frame, p1, p2, (255, 0, 0), 2, 1)
-                cv2.circle(self.map2d, (homo[0], homo[1]), 10, (0, 0, 255), 5)  # for the ball on the 2D map
-                cv2.imshow("Tracking",
-                           np.vstack((frame, cv2.resize(self.map2d, (frame.shape[1], frame.shape[1] // 2)))))
-
+                cv2.circle(map_2d, (homo[0], homo[1]), 10, (0, 0, 255), 5)  # for the ball on the 2D map
                 self.check_track -= 1
 
             elif self.ball_detection('resources/ball/',
@@ -97,11 +93,13 @@ class BallDetectTrack:
                                      p1[0] - self.ball_padding:p2[0] + self.ball_padding],
                                      0.5) is not None:
                 self.check_track = MAX_TRACK
-                vis = np.vstack((frame, cv2.resize(self.map2d, (frame.shape[1], frame.shape[1] // 2))))
-                cv2.imshow("Tracking", vis)
-                writer.writeFrame(vis)
                 self.do_detection = False
 
             else:  # se è 0 check track e non ho trovato la ball
                 self.check_track = MAX_TRACK
                 self.do_detection = True
+
+            return frame, map_2d
+
+        else:
+            return frame, None

@@ -10,9 +10,8 @@ index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
 search_params = dict(checks=50)
 flann = cv2.FlannBasedMatcher(index_params, search_params)
 
-
 class VideoHandler:
-    def __init__(self, pano, video, ball_detector, feet_detector):
+    def __init__(self, pano, video, ball_detector, feet_detector, map_2d):
         self.M1 = np.load("Rectify1.npy")
         self.sift = cv2.xfeatures2d.SIFT_create()
         self.pano = pano
@@ -20,6 +19,7 @@ class VideoHandler:
         self.kp1, self.des1 = self.sift.compute(pano, self.sift.detect(pano))
         self.feet_detector = feet_detector
         self.ball_detector = ball_detector
+        self.map_2d = map_2d
 
     def run_detectors(self):
         writer = skvideo.io.FFmpegWriter("demo.mp4")
@@ -32,14 +32,16 @@ class VideoHandler:
                 if 0 <= time_index < 20:
                     frame = frame[TOPCUT:, :]
                     M = self.get_homography(frame, self.des1, self.kp1)
-                    self.feet_detector.get_players_pos(M, self.M1, frame, time_index, writer)
-                    self.ball_detector.map2d = self.feet_detector.map2d_updated
-                    self.ball_detector.ball_tracker(M, self.M1, frame, writer)
+                    frame, self.map_2d, map_2d_text = self.feet_detector.get_players_pos(M, self.M1, frame, time_index, self.map_2d)
+                    frame, ball_map_2d = self.ball_detector.ball_tracker(M, self.M1, frame, self.map_2d.copy())
+                    vis = np.vstack((frame, cv2.resize(map_2d_text, (frame.shape[1], frame.shape[1] // 2))))
+
+                    cv2.imshow("Tracking", vis)
+                    writer.writeFrame(cv2.cvtColor(vis, cv2.COLOR_BGR2RGB))
 
                     k = cv2.waitKey(1) & 0xff
                     if k == 27:
                         break
-
             time_index += 1
         self.video.release()
         writer.close()

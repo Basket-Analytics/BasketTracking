@@ -89,7 +89,9 @@ if __name__ == '__main__':
     map = cv2.resize(map, (rectified.shape[1], rectified.shape[0]))
 
     video = cv2.VideoCapture("resources/Short4Mosaicing.mp4")
-    feet_detector = FeetDetector(map)
-    ball_detect_track = BallDetectTrack(map)
-    video_handler = VideoHandler(pano_enhanced, video, ball_detect_track, feet_detector)
+    feet_detector = FeetDetector()
+    ball_detect_track = BallDetectTrack()
+    video_handler = VideoHandler(pano_enhanced, video, ball_detect_track, feet_detector, map)
     video_handler.run_detectors()
+
+    #RUNNA FINO A 200, SISTEMA PALLA
