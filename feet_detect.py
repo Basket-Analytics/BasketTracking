@@ -70,7 +70,6 @@ class FeetDetector:
         # return the intersection over union value
         return iou
 
-
     def get_players_pos(self, M, M1, frame, timestamp, map_2d):
         warped_kpts = []
         outputs_seg = self.predictor_seg(frame)
@@ -86,7 +85,8 @@ class FeetDetector:
 
         for i, entry in enumerate(indices):  # picking only class 0 (people)
             if entry == 0:
-                ppl.append(np.array(cv2.erode(np.array(predicted_masks[i], dtype=np.uint8), kernel, iterations=4), dtype=bool))
+                ppl.append(
+                    np.array(cv2.erode(np.array(predicted_masks[i], dtype=np.uint8), kernel, iterations=4), dtype=bool))
 
         indexes_ppl = np.array(
             [np.array(np.where(p == True)).T for p in ppl])

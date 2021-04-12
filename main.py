@@ -88,7 +88,7 @@ if __name__ == '__main__':
     resized = cv2.resize(rectified, (map.shape[1], map.shape[0]))
     map = cv2.resize(map, (rectified.shape[1], rectified.shape[0]))
 
-    video = cv2.VideoCapture("resources/Short4Mosaicing.mp4")
+    video = cv2.VideoCapture("resources/Short4Mosaicing2.mp4")
 
     players = []
     for i in range(1, 6):

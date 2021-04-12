@@ -84,10 +84,10 @@ class BallDetectTrack:
             ball_center = np.array([int(bbox[0] + bbox[2] / 2), int(bbox[1] + bbox[3] / 2), 1])
             clean_frame = frame.copy()
 
-            bbox_iou = (ball_center[1]-IOU_BALL_PADDING,
-                        ball_center[0]- IOU_BALL_PADDING,
-                        ball_center[1]+IOU_BALL_PADDING,
-                        ball_center[0]+IOU_BALL_PADDING)
+            bbox_iou = (ball_center[1] - IOU_BALL_PADDING,
+                        ball_center[0] - IOU_BALL_PADDING,
+                        ball_center[1] + IOU_BALL_PADDING,
+                        ball_center[0] + IOU_BALL_PADDING)
             scores = []
 
             for p in self.players:

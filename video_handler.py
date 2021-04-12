@@ -23,7 +23,7 @@ class VideoHandler:
         self.map_2d = map_2d
 
     def run_detectors(self):
-        writer = skvideo.io.FFmpegWriter("demo.mp4")
+        writer = skvideo.io.FFmpegWriter("demo2.mp4")
         time_index = 0
         while self.video.isOpened():
             ok, frame = self.video.read()
@@ -39,7 +39,8 @@ class VideoHandler:
                     M = self.get_homography(frame, self.des1, self.kp1)
                     frame, self.map_2d, map_2d_text = self.feet_detector.get_players_pos(M, self.M1, frame, time_index,
                                                                                          self.map_2d)
-                    frame, ball_map_2d = self.ball_detector.ball_tracker(M, self.M1, frame, self.map_2d.copy(), map_2d_text, time_index)
+                    frame, ball_map_2d = self.ball_detector.ball_tracker(M, self.M1, frame, self.map_2d.copy(),
+                                                                         map_2d_text, time_index)
                     vis = np.vstack((frame, cv2.resize(map_2d_text, (frame.shape[1], frame.shape[1] // 2))))
 
                     cv2.imshow("Tracking", vis)
