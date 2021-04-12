@@ -30,7 +30,7 @@ class VideoHandler:
             if not ok:
                 break
             else:
-                if 120 <= time_index < 200:
+                if 0 <= time_index <= 230:
 
                     print("\r Computing DEMO: " + str(int(100 * time_index / 200)) + "%",
                           flush=True, end='')
@@ -43,7 +43,7 @@ class VideoHandler:
                     vis = np.vstack((frame, cv2.resize(map_2d_text, (frame.shape[1], frame.shape[1] // 2))))
 
                     cv2.imshow("Tracking", vis)
-                    #writer.writeFrame(cv2.cvtColor(vis, cv2.COLOR_BGR2RGB))
+                    writer.writeFrame(cv2.cvtColor(vis, cv2.COLOR_BGR2RGB))
 
                     k = cv2.waitKey(1) & 0xff
                     if k == 27:

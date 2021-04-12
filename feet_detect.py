@@ -19,7 +19,8 @@ COLORS = {  # in HSV FORMAT
     'white': ([0, 0, 220], [255, 15, 255], [255, 0, 255])  # USA
 }
 
-IOU_TH = 0.3
+IOU_TH = 0.2
+PAD = 15
 
 
 def hsv2bgr(color_hsv):
@@ -98,37 +99,37 @@ class FeetDetector:
             bottom = max(keypoint[:, 0])
             left = min(keypoint[:, 1])
             right = max(keypoint[:, 1])
-            bbox_person = (top, left, bottom, right)
+            bbox_person = (top - PAD, left - PAD, bottom + PAD, right + PAD)
             tmp_tensor = p.reshape((p.shape[0], p.shape[1], 1))
 
             crop_img = np.where(tmp_tensor, frame, 0)
-
             crop_img = crop_img[top:(bottom - int(0.3 * (bottom - top))), left:right]
-            crop_img = cv2.cvtColor(crop_img, cv2.COLOR_BGR2HSV)
+            if len(crop_img) > 0:
+                crop_img = cv2.cvtColor(crop_img, cv2.COLOR_BGR2HSV)
 
-            best_mask = [0, '']  # (num_non_black, color)
-            for color in COLORS.keys():
-                mask = cv2.inRange(crop_img, np.array(COLORS[color][0]), np.array(COLORS[color][1]))
-                output = cv2.bitwise_and(crop_img, crop_img, mask=mask)
+                best_mask = [0, '']  # (num_non_black, color)
+                for color in COLORS.keys():
+                    mask = cv2.inRange(crop_img, np.array(COLORS[color][0]), np.array(COLORS[color][1]))
+                    output = cv2.bitwise_and(crop_img, crop_img, mask=mask)
 
-                non_blacks = FeetDetector.count_non_black(output)
-                if best_mask[0] < non_blacks:
-                    best_mask[0] = non_blacks
-                    best_mask[1] = color
+                    non_blacks = FeetDetector.count_non_black(output)
+                    if best_mask[0] < non_blacks:
+                        best_mask[0] = non_blacks
+                        best_mask[1] = color
 
-            head = int(np.argmin(keypoint[:, 0]))
-            foot = int(np.argmax(keypoint[:, 0]))
+                head = int(np.argmin(keypoint[:, 0]))
+                foot = int(np.argmax(keypoint[:, 0]))
 
-            kpt = np.array([keypoint[head, 1], keypoint[foot, 0], 1])  # perspective space
-            homo = M1 @ (M @ kpt.reshape((3, -1)))
-            homo = np.int32(homo / homo[-1]).ravel()
-            # homo = [vertical pos, horizontal pos]
-            # homo has the position of player in the 2D map
+                kpt = np.array([keypoint[head, 1], keypoint[foot, 0], 1])  # perspective space
+                homo = M1 @ (M @ kpt.reshape((3, -1)))
+                homo = np.int32(homo / homo[-1]).ravel()
+                # homo = [vertical pos, horizontal pos]
+                # homo has the position of player in the 2D map
 
-            if best_mask[1] != '':
-                color = hsv2bgr(COLORS[best_mask[1]][2])
-                warped_kpts.append((homo, color, best_mask[1], bbox_person))  # appending also the color
-                cv2.circle(frame, (keypoint[head, 1], keypoint[foot, 0]), 2, color, 5)
+                if best_mask[1] != '':
+                    color = hsv2bgr(COLORS[best_mask[1]][2])
+                    warped_kpts.append((homo, color, best_mask[1], bbox_person))  # appending also the color
+                    cv2.circle(frame, (keypoint[head, 1], keypoint[foot, 0]), 2, color, 5)
 
         for kpt in warped_kpts:
             (homo, color, color_key, bbox) = kpt
@@ -136,9 +137,8 @@ class FeetDetector:
             iou_scores = []  # (current_iou, player)
             for player in self.players:
                 if (player.team == color_key) and (player.previous_bb is not None) and \
-                        (0 <= homo[0] < map_2d.shape[0]) and (0 <= homo[1] < map_2d.shape[1]):
+                        (0 <= homo[0] < map_2d.shape[1]) and (0 <= homo[1] < map_2d.shape[0]):
                     iou_current = self.bb_intersection_over_union(bbox, player.previous_bb)
-                    # print(iou_current)
                     if iou_current >= IOU_TH:
                         iou_scores.append((iou_current, player))
 
@@ -156,9 +156,10 @@ class FeetDetector:
 
         for player in self.players:
             if len(player.positions) > 0:
-                if (timestamp - max(player.positions.keys())) >= 5:
+                if (timestamp - max(player.positions.keys())) >= 7:
                     player.positions = {}
                     player.previous_bb = None
+                    player.has_ball = False
 
         map_2d_text = map_2d.copy()
         for p in self.players:

@@ -7,7 +7,7 @@ from feet_detect import *
 from main import TOPCUT
 
 MAX_TRACK = 5
-IOU_BALL_PADDING = 20
+IOU_BALL_PADDING = 30
 
 
 class BallDetectTrack:
@@ -84,23 +84,27 @@ class BallDetectTrack:
             ball_center = np.array([int(bbox[0] + bbox[2] / 2), int(bbox[1] + bbox[3] / 2), 1])
             clean_frame = frame.copy()
 
-            bbox_iou = (bbox[0]-IOU_BALL_PADDING,
-                        bbox[1]- IOU_BALL_PADDING,
-                        bbox[0]+bbox[2]+IOU_BALL_PADDING,
-                        bbox[1]+bbox[3]+IOU_BALL_PADDING)
+            bbox_iou = (ball_center[1]-IOU_BALL_PADDING,
+                        ball_center[0]- IOU_BALL_PADDING,
+                        ball_center[1]+IOU_BALL_PADDING,
+                        ball_center[0]+IOU_BALL_PADDING)
             scores = []
-            for p in self.players:
-                if p.team != "referee":
-                    if p.has_ball:
-                        p.has_ball=False
-                    if p.previous_bb is not None:
-                        scores.append((p, FeetDetector.bb_intersection_over_union(bbox_iou, p.previous_bb)))
 
-            print(scores)
-            max_score = max(scores, key=itemgetter(1))
-            max_score[0].has_ball = True
-            cv2.circle(map_2d_text, (max_score[0].positions[timestamp]), 27, (0, 0, 255), 10)
-            print(max_score[0].positions[timestamp])
+            for p in self.players:
+                try:
+                    tmp = p.positions[timestamp]
+                    if p.team != "referee":
+                        if p.previous_bb is not None:
+                            scores.append((p, FeetDetector.bb_intersection_over_union(bbox_iou, p.previous_bb)))
+                except KeyError:
+                    pass
+
+            if len(scores) > 0:
+                for p in self.players:
+                    p.has_ball = False
+                max_score = max(scores, key=itemgetter(1))
+                max_score[0].has_ball = True
+                cv2.circle(map_2d_text, (max_score[0].positions[timestamp]), 27, (0, 0, 255), 10)
 
             if self.check_track > 0:
                 homo = M1 @ (M @ ball_center.reshape((3, -1)))
