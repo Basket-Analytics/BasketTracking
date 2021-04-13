@@ -6,11 +6,11 @@ vision approaches and ideas alongside deep learning models such as Detectron2.
 ### Demo
 
 <p align='center'>
-  <img src="demo.gif" width="90%"/>
+  <img src="resources/demo.gif" width="80%"/>
 </p>  
 
 
 <p align='center'>
-  <img src="demo2.gif" width="90%"/>
+  <img src="resources/demo2.gif" width="80%"/>
 </p>
 

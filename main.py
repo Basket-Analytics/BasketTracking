@@ -1,12 +1,10 @@
-import cv2
-import numpy as np
-import matplotlib.pyplot as plt
-import os.path
+import os
 
+from matplotlib import pyplot as plt
+
+from ball_detect_track import BallDetectTrack
+from player import Player
 from rectify_court import *
-from ball_detect_track import *
-from plot_tools import plt_plot
-from feet_detect import FeetDetector
 from video_handler import *
 
 
@@ -47,8 +45,8 @@ if __name__ == '__main__':
     # 15m vertical lines
 
     # loading already computed panoramas
-    if os.path.exists('pano.png'):
-        pano = cv2.imread("pano.png")
+    if os.path.exists('resources/pano.png'):
+        pano = cv2.imread("resources/pano.png")
     else:
         central_frame = 36
         frames = get_frames('resources/Short4Mosaicing.mp4', central_frame, mod=3)
@@ -57,17 +55,17 @@ if __name__ == '__main__':
         current_mosaic2 = collage(frames_flipped, direction=-1)
         pano = collage([cv2.flip(current_mosaic2, 1)[:, :-10], current_mosaic1])
 
-        cv2.imwrite("pano.png", pano)
+        cv2.imwrite("resources/pano.png", pano)
 
-    if os.path.exists('pano_enhanced.png'):
-        pano_enhanced = cv2.imread("pano_enhanced.png")
+    if os.path.exists('resources/pano_enhanced.png'):
+        pano_enhanced = cv2.imread("resources/pano_enhanced.png")
         plt_plot(pano, "Panorama")
     else:
         pano_enhanced = pano
         for file in os.listdir("resources/snapshots/"):
             frame = cv2.imread("resources/snapshots/" + file)[TOPCUT:]
             pano_enhanced = add_frame(frame, pano, pano_enhanced, plot=True)
-        cv2.imwrite("pano_enhanced.png", pano_enhanced)
+        cv2.imwrite("resources/pano_enhanced.png", pano_enhanced)
 
     ###################################
     pano_enhanced = np.vstack((pano_enhanced,
@@ -81,7 +79,6 @@ if __name__ == '__main__':
     rectified = rectify(pano_enhanced, corners, plot=True)
 
     # correspondences map-pano
-    # TODO: riguardare il sotto
     map = cv2.imread("resources/2d_map.png")
     scale = rectified.shape[0] / map.shape[0]
     map = cv2.resize(map, (int(scale * map.shape[1]), int(scale * map.shape[0])))
@@ -100,5 +97,3 @@ if __name__ == '__main__':
     ball_detect_track = BallDetectTrack(players)
     video_handler = VideoHandler(pano_enhanced, video, ball_detect_track, feet_detector, map)
     video_handler.run_detectors()
-
-    # SISTEMA PALLA, VEDI SE METTERE ALTRO MODELLO

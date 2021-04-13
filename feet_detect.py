@@ -1,17 +1,12 @@
 import torch
 import cv2
 import numpy as np
-from player import *
 from operator import itemgetter
 
 # import some common detectron2 utilities
 from detectron2 import model_zoo
 from detectron2.engine import DefaultPredictor
 from detectron2.config import get_cfg
-from detectron2.utils.visualizer import Visualizer
-from detectron2.data import MetadataCatalog, DatasetCatalog
-
-from plot_tools import plt_plot
 
 COLORS = {  # in HSV FORMAT
     'green': ([56, 50, 50], [100, 255, 255], [72, 200, 153]),  # NIGERIA

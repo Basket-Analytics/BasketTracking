@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-from plot_tools import plt_plot
+from tools.plot_tools import plt_plot
 
 FLANN_INDEX_KDTREE = 1
 index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)

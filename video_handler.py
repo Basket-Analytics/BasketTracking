@@ -1,5 +1,3 @@
-from ball_detect_track import *
-from plot_tools import *
 from feet_detect import *
 import skvideo.io
 

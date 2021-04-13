@@ -1,10 +1,6 @@
-import cv2
 import os.path
-import numpy as np
 
-from plot_tools import plt_plot
 from feet_detect import *
-from main import TOPCUT
 
 MAX_TRACK = 5
 IOU_BALL_PADDING = 30
