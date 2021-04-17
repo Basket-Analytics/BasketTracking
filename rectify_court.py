@@ -205,5 +205,5 @@ def rectify(pano_enhanced, corners, plot=False):
     # rectified = np.hstack((h1, cv2.resize(h2, (int((h2.shape[0] / h1.shape[0]) * h1.shape[1]), h1.shape[0]))))
     rectified = np.hstack((h1, cv2.resize(h2, (h1.shape[1], h1.shape[0]))))
     cv2.imwrite("rectified.png", rectified)
-    if plot: plt_plot(rectified)
+    if plot: plt_plot(cv2.cvtColor(rectified, cv2.COLOR_BGR2RGB))
     return rectified

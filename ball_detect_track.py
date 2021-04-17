@@ -1,6 +1,7 @@
 import os.path
 
 from feet_detect import *
+from tools.plot_tools import plt_plot
 
 MAX_TRACK = 5
 IOU_BALL_PADDING = 30
@@ -30,7 +31,6 @@ class BallDetectTrack:
                     # draw the outer circle and center of the circle
                     cv2.circle(cimg, (i[0], i[1]), i[2], (0, 255, 0), 2)
                     cv2.circle(cimg, (i[0], i[1]), 2, (0, 0, 255), 3)
-
                 plt_plot(cimg, "Detected Circles")
 
             return circles.reshape((-1, 3))
@@ -108,6 +108,7 @@ class BallDetectTrack:
                 cv2.rectangle(frame, p1, p2, (255, 0, 0), 2, 1)
                 cv2.circle(map_2d, (homo[0], homo[1]), 10, (0, 0, 255), 5)  # for the ball on the 2D map
                 self.check_track -= 1
+                plt_plot(frame)
 
             elif self.ball_detection('resources/ball/',
                                      clean_frame[p1[1] - self.ball_padding:p2[1] + self.ball_padding,

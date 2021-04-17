@@ -64,7 +64,7 @@ if __name__ == '__main__':
         pano_enhanced = pano
         for file in os.listdir("resources/snapshots/"):
             frame = cv2.imread("resources/snapshots/" + file)[TOPCUT:]
-            pano_enhanced = add_frame(frame, pano, pano_enhanced, plot=True)
+            pano_enhanced = add_frame(frame, pano, pano_enhanced, plot=False)
         cv2.imwrite("resources/pano_enhanced.png", pano_enhanced)
 
     ###################################
@@ -76,7 +76,7 @@ if __name__ == '__main__':
 
     plt_plot(simplified_court, "Corner Detection", cmap="gray", additional_points=corners)
 
-    rectified = rectify(pano_enhanced, corners, plot=True)
+    rectified = rectify(pano_enhanced, corners, plot=False)
 
     # correspondences map-pano
     map = cv2.imread("resources/2d_map.png")
@@ -85,7 +85,7 @@ if __name__ == '__main__':
     resized = cv2.resize(rectified, (map.shape[1], map.shape[0]))
     map = cv2.resize(map, (rectified.shape[1], rectified.shape[0]))
 
-    video = cv2.VideoCapture("resources/Short4Mosaicing2.mp4")
+    video = cv2.VideoCapture("resources/Short4Mosaicing.mp4")
 
     players = []
     for i in range(1, 6):
