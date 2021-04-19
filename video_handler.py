@@ -1,4 +1,4 @@
-from feet_detect import *
+from player_detection import *
 import skvideo.io
 
 TOPCUT = 320
@@ -42,7 +42,8 @@ class VideoHandler:
                     vis = np.vstack((frame, cv2.resize(map_2d_text, (frame.shape[1], frame.shape[1] // 2))))
 
                     cv2.imshow("Tracking", vis)
-                    writer.writeFrame(cv2.cvtColor(vis, cv2.COLOR_BGR2RGB))
+                    plt_plot(vis)
+                    # writer.writeFrame(cv2.cvtColor(vis, cv2.COLOR_BGR2RGB))
 
                     k = cv2.waitKey(1) & 0xff
                     if k == 27:

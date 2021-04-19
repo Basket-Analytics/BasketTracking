@@ -5,13 +5,17 @@ from operator import itemgetter
 
 # import some common detectron2 utilities
 from detectron2 import model_zoo
+from detectron2.data import MetadataCatalog
 from detectron2.engine import DefaultPredictor
 from detectron2.config import get_cfg
+from detectron2.utils.visualizer import Visualizer
+
+from tools.plot_tools import plt_plot
 
 COLORS = {  # in HSV FORMAT
     'green': ([56, 50, 50], [100, 255, 255], [72, 200, 153]),  # NIGERIA
     'referee': ([0, 0, 0], [255, 35, 65], [120, 0, 0]),  # REFEREE
-    'white': ([0, 0, 220], [255, 15, 255], [255, 0, 255])  # USA
+    'white': ([0, 0, 190], [255, 26, 255], [255, 0, 255])  # USA
 }
 
 IOU_TH = 0.2
@@ -35,6 +39,7 @@ class FeetDetector:
         self.predictor_seg = DefaultPredictor(cfg_seg)
         self.bbs = []
         self.players = players
+        self.cfg = cfg_seg
 
     @staticmethod
     def count_non_black(image):
@@ -83,6 +88,10 @@ class FeetDetector:
                 ppl.append(
                     np.array(cv2.erode(np.array(predicted_masks[i], dtype=np.uint8), kernel, iterations=4), dtype=bool))
 
+        '''v = Visualizer(frame[:, :, ::-1], MetadataCatalog.get(self.cfg.DATASETS.TRAIN[0]), scale=1.2)
+        out = v.draw_instance_predictions(outputs_seg["instances"].to("cpu"))
+        plt_plot(out.get_image()[:, :, ::-1])'''
+
         indexes_ppl = np.array(
             [np.array(np.where(p == True)).T for p in ppl])
         # returns two np arrays per person, one for x one for y
@@ -104,8 +113,11 @@ class FeetDetector:
 
                 best_mask = [0, '']  # (num_non_black, color)
                 for color in COLORS.keys():
-                    mask = cv2.inRange(crop_img, np.array(COLORS[color][0]), np.array(COLORS[color][1]))
+                    mask = cv2.inRange(crop_img, np.
+                                       array(COLORS[color][0]), np.array(COLORS[color][1]))
                     output = cv2.bitwise_and(crop_img, crop_img, mask=mask)
+                    # plt_plot(np.hstack((cv2.cvtColor(crop_img, cv2.COLOR_HSV2BGR),
+                    #                    cv2.cvtColor(output, cv2.COLOR_HSV2BGR))))
 
                     non_blacks = FeetDetector.count_non_black(output)
                     if best_mask[0] < non_blacks:

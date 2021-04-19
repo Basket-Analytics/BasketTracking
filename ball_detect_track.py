@@ -1,6 +1,6 @@
 import os.path
 
-from feet_detect import *
+from player_detection import *
 from tools.plot_tools import plt_plot
 
 MAX_TRACK = 5
@@ -108,7 +108,7 @@ class BallDetectTrack:
                 cv2.rectangle(frame, p1, p2, (255, 0, 0), 2, 1)
                 cv2.circle(map_2d, (homo[0], homo[1]), 10, (0, 0, 255), 5)  # for the ball on the 2D map
                 self.check_track -= 1
-                plt_plot(frame)
+                # plt_plot(frame)
 
             elif self.ball_detection('resources/ball/',
                                      clean_frame[p1[1] - self.ball_padding:p2[1] + self.ball_padding,
