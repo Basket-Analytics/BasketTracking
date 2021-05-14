@@ -1,5 +1,7 @@
 # BasketTracking
 
+![](resources/logo_large.png "Logo")
+
 Tactics and statistics in professional basketball teams are widespread. This operation can be optimized and speed up by
 an automatic computer vision system. We aim at developing such system capable of action tracking and understanding in
 basketball games using computer vision approaches and ideas alongside deep learning models such as Detectron2. Our
