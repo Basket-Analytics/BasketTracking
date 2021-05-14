@@ -108,8 +108,7 @@ class BallDetectTrack:
                 cv2.rectangle(frame, p1, p2, (255, 0, 0), 2, 1)
                 cv2.circle(map_2d, (homo[0], homo[1]), 10, (0, 0, 255), 5)  # for the ball on the 2D map
                 self.check_track -= 1
-                # plt_plot(frame)
-
+                
             elif self.ball_detection('resources/ball/',
                                      clean_frame[p1[1] - self.ball_padding:p2[1] + self.ball_padding,
                                      p1[0] - self.ball_padding:p2[0] + self.ball_padding],
@@ -117,7 +116,7 @@ class BallDetectTrack:
                 self.check_track = MAX_TRACK
                 self.do_detection = False
 
-            else:  # se è 0 check track e non ho trovato la ball
+            else:  #if check = 0 ball not found
                 self.check_track = MAX_TRACK
                 self.do_detection = True
 
