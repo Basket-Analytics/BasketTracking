@@ -27,7 +27,7 @@ who owns the ball.
 * [Detectron2](https://github.com/facebookresearch/detectron2)
 * [Pytorch-Cuda](https://pytorch.org/)
 * [Numpy](https://numpy.org/)
-* [Matplotlib](https://numpy.org/)
+* [Matplotlib](https://matplotlib.org/)
 
 ### Usage
 
