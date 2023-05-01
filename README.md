@@ -16,9 +16,7 @@ who owns the ball.
 
 ### Demo
 
-<p align='center'>
-  <img src="resources/demo.gif" width="80%"/>
-</p>
+https://user-images.githubusercontent.com/28055473/235509681-c2008686-43b4-40a4-a64d-e642714d84ff.mp4
 
 ### Dependencies
 
