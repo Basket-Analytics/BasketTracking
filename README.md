@@ -6,7 +6,8 @@ Tactics and statistics in professional basketball teams are widespread. This ope
 an automatic computer vision system. We aim at developing such system capable of action tracking and understanding in
 basketball games using computer vision approaches and ideas alongside deep learning models such as Detectron2. Our
 system tracks player trajectories from videos and rectifies them to a standard basketball court, showing also the player
-who owns the ball.
+who owns the ball.  
+_(disclaimer: we implemented some components with old fashion CV techniques, e.g. ball detection with template matching, the performance was not the goal of the project)_
 
 ## Table of Contents
 
